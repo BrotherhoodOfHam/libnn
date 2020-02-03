@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 #include <cassert>
 #include <memory>
 #include <iostream>
@@ -67,6 +67,14 @@ public:
 		cols(_cols)
 	{}
 
+	matrix(matrix&& rhs) noexcept :
+		m(std::move(rhs.m)),
+		rows(rhs.rows),
+		cols(rhs.cols)
+	{}
+
+	matrix(const matrix&) = delete;
+
 	inline slice<scalar> operator[](size_t i)
 	{
 		assert(i < rows);
@@ -84,7 +92,6 @@ class layer
 {
 	matrix w;
 	vector b;
-	bool is_output;
 
 public:
 
@@ -121,10 +128,9 @@ public:
 		{}
 	};
 
-	layer(size_t layer_size, size_t input_size, bool _is_output = false) :
+	layer(size_t layer_size, size_t input_size) :
 		w(layer_size, input_size),
-		b(layer_size),
-		is_output(_is_output)
+		b(layer_size)
 	{
 		std::default_random_engine gen;
 		std::normal_distribution<float> dist(0, 1);
@@ -141,15 +147,8 @@ public:
 	inline size_t input_size() const { return w.cols; }
 	inline size_t layer_size() const { return w.rows; }
 
-	activation alloc_activation() const
-	{
-		return activation(vector(layer_size()), vector(layer_size()));
-	}
-
-	delta alloc_delta() const
-	{
-		return delta(matrix(w.rows, w.cols), vector(b.length), vector(input_size()));
-	}
+	activation alloc_activation() const { return activation(vector(layer_size()), vector(layer_size())); }
+	delta alloc_delta() const { return delta(matrix(w.rows, w.cols), vector(b.length), vector(input_size())); }
 
 	void forward(activation& out, const vector& x) const
 	{
@@ -157,16 +156,19 @@ public:
 		assert(out.z.length == w.rows);
 		assert(x.length == w.cols);
 
-		//a = s(W.x + b)
+		//for each activation a:
+		//a = f(w.x + b)
 		for (size_t j = 0; j < w.rows; j++)
 		{
+			//z = w.x + b
 			scalar z = 0.0f;
 			for (size_t i = 0; i < w.cols; i++)
 				z += x[i] * w[j][i];
 			z += b[j];
 
+			//cache z and a
 			out.z[j] = z;
-			out.a[j] = sigmoid(z);
+			out.a[j] = f(z);
 		}
 	}
 
@@ -179,18 +181,27 @@ public:
 		assert(x.length == input_size());
 		assert(z.length == layer_size());
 
-		//db
-		for (size_t i = 0; i < b.length; i++)
-			out.db[i] = dy[i] * sigmoidDerivative(z[i]);
+		// δy = δC/δy = partial derivative of cost w.r.t to output activations (δC/δy)
+		// the goal is to find the derivatives w.r.t to every parameter and input:
+		// δC/δw
+		// δC/δb
+		// δC/δx
 
-		//dw - outer product
-		for (size_t j = 0; j < out.db.length; j++)
+		// compute partial derivatives w.r.t weights and biases
+		for (size_t j = 0; j < b.length; j++)
+		{
+			// δz = δy * f'(z)
+			// δb = δz  (they are equivalent)
+			out.db[j] = dy[j] * fp(z[j]);
+			// δw = δz * x 
 			for (size_t i = 0; i < x.length; i++)
 				out.dw[j][i] = out.db[j] * x[i];
+		}
 
-		//dx
+		// compute partial derivative w.r.t input x
 		for (size_t i = 0; i < w.cols; i++)
 		{
+			// δx = w^T * δz 
 			scalar s = 0.0f;
 			for (size_t j = 0; j < w.rows; j++)
 				s += out.db[j] * w[j][i];
@@ -203,26 +214,26 @@ public:
 		assert(d.dw.rows == w.rows && d.dw.cols == w.cols);
 		assert(d.db.length == b.length);
 
-		for (size_t i = 0; i < b.length; i++)
-			b[i] -= k * d.db[i];
-
+		//apply gradient descent
 		for (size_t j = 0; j < w.rows; j++)
+		{
+			b[j] -= k * d.db[j];
+
 			for (size_t i = 0; i < w.cols; i++)
 				w[j][i] = (r * w[j][i]) - (k * d.dw[j][i]);
+		}
 	}
 
 private:
 
-	scalar sigmoid(scalar z) const
+	scalar f(scalar z) const
 	{
 		return 1.0f / (1.0f + std::exp(-z));
 	}
 
-	scalar sigmoidDerivative(scalar z) const
+	scalar fp(scalar z) const
 	{
-		if (is_output)
-			return 1.0f;
-		scalar s = sigmoid(z);
+		scalar s = f(z);
 		return s * (1.0f - s);
 	}
 };
@@ -245,7 +256,7 @@ public:
 
 		for (size_t i = 1; i < layer_sizes.size(); i++)
 		{
-			_layers.emplace_back(layer_sizes[i], layer_sizes[i - 1], (i + 1) == layer_sizes.size());
+			_layers.emplace_back(layer_sizes[i], layer_sizes[i - 1]);
 			_actvns.push_back(_layers.back().alloc_activation());
 			_deltas.push_back(_layers.back().alloc_delta());
 		}
@@ -258,16 +269,14 @@ public:
 		const float k = learning_rate;
 		const float r = 1 - (learning_rate * regularization_term / training_set.size());
 
-		std::default_random_engine rng;
-
-		for (uint32_t ep = 0; ep < epochs; ep++)
+		for (size_t ep = 0; ep < epochs; ep++)
 		{
 			std::cout << "epoch " << ep << ":\n" << std::endl;
-			std::cout << "training..." << std::endl;
 
-			std::random_shuffle(testing_set.begin(), testing_set.end());
+			std::shuffle(training_set.begin(), training_set.end(), std::default_random_engine(ep));
 
-			auto last = std::chrono::system_clock::now();
+			auto first = std::chrono::system_clock::now();
+			auto last = first;
 			size_t c = 0;
 			for (const auto& p : training_set)
 			{
@@ -288,12 +297,8 @@ public:
 				c++;
 			}
 
-			std::cout << "testing..." << std::endl;
-
-			std::random_shuffle(testing_set.begin(), testing_set.end());
-
-			float mse = 0.0f;
-			uint32_t correct = 0;
+			double mse = 0.0;
+			size_t correct = 0;
 			for (const auto& p : testing_set)
 			{
 				const auto& prediction = forward(p.first).back().a;
@@ -305,7 +310,7 @@ public:
 				if (arg_max(prediction) == arg_max(p.second))
 					correct++;
 			}
-			mse /= (2 * testing_set.size());
+			mse /= (2.0 * testing_set.size());
 
 			std::cout << "mse: " << mse << " | recognised: (" << correct << " / " << testing_set.size() << ")" << std::endl;
 		}
