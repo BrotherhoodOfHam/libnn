@@ -511,7 +511,7 @@ private:
 
 std::vector<std::pair<vector, vector>> preprocess(const std::vector<std::vector<uint8_t>>& data, const std::vector<uint8_t>& labels)
 {
-	std::cout << "preprocessing..." << std::endl;
+	std::cout << "Preprocess" << std::endl;
 
 	std::vector<std::pair<vector, vector>> t;
 	t.reserve(data.size());
@@ -535,8 +535,8 @@ std::vector<std::pair<vector, vector>> preprocess(const std::vector<std::vector<
 }
 
 int main()
-{
-	std::cout << "Loading MNIST" << std::endl;
+{ 
+	std::cout << "Load MNIST dataset" << std::endl;
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
 
 	nn n(784, {
