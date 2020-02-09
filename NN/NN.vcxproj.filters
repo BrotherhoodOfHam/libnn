@@ -13,6 +13,12 @@
     <ClCompile Include="nn.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="nn_nodes.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\mnist\t10k-images-idx3-ubyte">
@@ -27,5 +33,16 @@
     <CopyFileToFolders Include="..\mnist\train-labels-idx1-ubyte">
       <Filter>datasets</Filter>
     </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="nn.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="base.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="nn_nodes.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
