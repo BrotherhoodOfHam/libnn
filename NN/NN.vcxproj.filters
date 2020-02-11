@@ -8,15 +8,27 @@
     <Filter Include="datasets">
       <UniqueIdentifier>{e392b0fb-ac34-413d-ad6a-e38763a9919c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\nn">
+      <UniqueIdentifier>{0249834d-45dd-4760-b535-7581317f5dc5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="nn.cpp">
+    <ClCompile Include="src/main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="src/nn/common.cpp">
+      <Filter>src\nn</Filter>
     </ClCompile>
-    <ClCompile Include="nn_nodes.cpp">
+    <ClCompile Include="src/nn/model.cpp">
+      <Filter>src\nn</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nn\activations.cpp">
+      <Filter>src\nn</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nn\dense_layer.cpp">
+      <Filter>src\nn</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gan.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,13 +47,25 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="nn.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src/nn/activations.h">
+      <Filter>src\nn</Filter>
     </ClInclude>
-    <ClInclude Include="base.h">
-      <Filter>src</Filter>
+    <ClInclude Include="src/nn/base.h">
+      <Filter>src\nn</Filter>
     </ClInclude>
-    <ClInclude Include="nn_nodes.h">
+    <ClInclude Include="src/nn/common.h">
+      <Filter>src\nn</Filter>
+    </ClInclude>
+    <ClInclude Include="src/nn/model.h">
+      <Filter>src\nn</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nn\nodes.h">
+      <Filter>src\nn</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nn\dense_layer.h">
+      <Filter>src\nn</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gan.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

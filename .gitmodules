@@ -4,3 +4,6 @@
 [submodule "mnist"]
 	path = mnist
 	url = https://github.com/wichtounet/mnist.git
+[submodule "CImg"]
+	path = CImg
+	url = https://github.com/dtschump/CImg.git

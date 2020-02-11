@@ -101,7 +101,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\dev\nn2\mnist\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\dev\nn2\mnist\include;F:\dev\nn2\CImg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,9 +125,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="nn.cpp" />
-    <ClCompile Include="nn_nodes.cpp" />
+    <ClCompile Include="src/main.cpp" />
+    <ClCompile Include="src/nn/model.cpp" />
+    <ClCompile Include="src/nn/common.cpp" />
+    <ClCompile Include="src\gan.cpp" />
+    <ClCompile Include="src\nn\activations.cpp" />
+    <ClCompile Include="src\nn\dense_layer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\mnist\t10k-images-idx3-ubyte">
@@ -148,9 +151,13 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="base.h" />
-    <ClInclude Include="nn.h" />
-    <ClInclude Include="nn_nodes.h" />
+    <ClInclude Include="src/nn/activations.h" />
+    <ClInclude Include="src/nn/base.h" />
+    <ClInclude Include="src/nn/model.h" />
+    <ClInclude Include="src/nn/common.h" />
+    <ClInclude Include="src\gan.h" />
+    <ClInclude Include="src\nn\dense_layer.h" />
+    <ClInclude Include="src\nn\nodes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
