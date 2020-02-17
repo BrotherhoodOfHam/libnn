@@ -1,4 +1,4 @@
-﻿/*
+/*
 	Neural Network Model
 */
 
@@ -12,6 +12,7 @@
 #include "model.h"
 #include "activations.h"
 #include "dense_layer.h"
+#include "dropout.h"
 
 using namespace nn;
 using namespace nn::nodes;
@@ -69,6 +70,10 @@ model::model(size_t input_size, std::vector<layer> layers, float learning_rate)
 		}
 
 		_nodes.push_back(std::move(actv));
+
+		if (layer_desc.dropout > 0.0f)
+			_nodes.push_back(std::make_unique<dropout>(layer_desc.size, layer_desc.dropout));
+
 		layer_input = layer_desc.size;
 	}
 

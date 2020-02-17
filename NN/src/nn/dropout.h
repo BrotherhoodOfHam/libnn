@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <random>
+
 #include "nodes.h"
 
 namespace nn
@@ -13,7 +15,9 @@ namespace nn
 		class dropout : public node
 		{
 			float _probability;
-			tensor v;
+			std::bernoulli_distribution _distribution;
+			tensor y, dx;
+			tensor p;
 			
 		public:
 
@@ -22,6 +26,8 @@ namespace nn
 			const tensor& forward(const tensor& x) override;
 
 			const tensor& backward(const tensor& x, const tensor& dy) override;
+
+			void update_params(float k, float r) override {}
 		};
 	}
 }

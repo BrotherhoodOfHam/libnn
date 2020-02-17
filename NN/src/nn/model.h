@@ -1,4 +1,4 @@
-﻿/*
+/*
 	Neural Network Model
 */
 
@@ -31,11 +31,13 @@ namespace nn
 		size_t size;
 		activation actv;
 		float leakiness;
+		float dropout;
 
-		layer(size_t _data_size, activation _actv = activation::sigmoid, float _leakiness = 0.1f) :
+		layer(size_t _data_size, activation _actv = activation::sigmoid, float _leakiness = 0.1f, float _dropout = 0.0f) :
 			size(_data_size),
 			actv(_actv),
-			leakiness(_leakiness)
+			leakiness(_leakiness),
+			dropout(_dropout)
 		{}
 	};
 
