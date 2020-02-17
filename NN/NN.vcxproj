@@ -76,7 +76,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\dev\nn2\mnist\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\dev\nn2\mnist\include;F:\dev\nn2\CImg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -102,6 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\dev\nn2\mnist\include;F:\dev\nn2\CImg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -131,6 +132,7 @@
     <ClCompile Include="src\gan.cpp" />
     <ClCompile Include="src\nn\activations.cpp" />
     <ClCompile Include="src\nn\dense_layer.cpp" />
+    <ClCompile Include="src\nn\dropout.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\mnist\t10k-images-idx3-ubyte">
@@ -152,12 +154,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src/nn/activations.h" />
-    <ClInclude Include="src/nn/base.h" />
     <ClInclude Include="src/nn/model.h" />
     <ClInclude Include="src/nn/common.h" />
     <ClInclude Include="src\gan.h" />
     <ClInclude Include="src\nn\dense_layer.h" />
+    <ClInclude Include="src\nn\dropout.h" />
     <ClInclude Include="src\nn\nodes.h" />
+    <ClInclude Include="src\nn\tensors.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

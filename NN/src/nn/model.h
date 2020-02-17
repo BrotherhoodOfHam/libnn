@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common.h"
-#include "base.h"
+#include "tensors.h"
 
 /*************************************************************************************************************************************/
 
@@ -13,7 +13,7 @@ namespace nn
 {
 	namespace nodes
 	{
-		class node_base;
+		class node;
 	}
 
 	enum class activation
@@ -32,8 +32,8 @@ namespace nn
 		activation actv;
 		float leakiness;
 
-		layer(size_t _size, activation _actv = activation::sigmoid, float _leakiness = 0.1f) :
-			size(_size),
+		layer(size_t _data_size, activation _actv = activation::sigmoid, float _leakiness = 0.1f) :
+			size(_data_size),
 			actv(_actv),
 			leakiness(_leakiness)
 		{}
@@ -41,38 +41,45 @@ namespace nn
 
 	class model
 	{
-		std::vector<std::unique_ptr<nodes::node_base>> _layers;
-		std::vector<vector> _a;  // layer activations
-		std::vector<vector> _dy; // layer gradient
-		std::vector<matrix> _dw; // layer weight gradient
-		std::vector<vector> _db; // layer bias gradient
+		std::vector<std::unique_ptr<nodes::node>> _nodes;
+		std::vector<std::reference_wrapper<const tensor>> _activations;
+		float _learning_rate;
 
 	public:
 
-		model(size_t input_size, std::vector<layer> layers);
+		model(size_t input_size, std::vector<layer> layers, float learning_rate);
 		~model();
 
 		model(const model&) = delete;
 
-		size_t input_size() const;
-		size_t output_size() const;
+		tensor_shape input_size() const;
+		tensor_shape output_size() const;
 
-		void train(std::vector<std::pair<vector, vector>> training_set, std::vector<std::pair<vector, vector>> testing_set, size_t epochs, float learning_rate, float regularization_term);
+		void train(
+			const std::vector<tensor>& x_train,
+			const std::vector<tensor>& y_train,
+			const std::vector<tensor>& x_test,
+			const std::vector<tensor>& y_test,
+			size_t epochs
+		);
 
-		void train_batch(const vector& x, const vector& y, float k, float r);
+		float train_batch(const tensor& x, const tensor& y);
 
-		void train_from_gradient(const vector& dy, float k, float r);
+		void train_from_gradient(const tensor& dy);
 
-		const vector& forward(const vector& x);
+		const tensor& forward(const tensor& x);
 
-		const vector& forward_backwards(const vector& x, const vector& y);
+		const tensor& forward_backwards(const tensor& x, const tensor& y);
 
 	private:
 
-		void _forwards(const vector& x);
-		void _backwards(const vector& dy);
-		void _update(float k, float r);
+		nodes::node* input_node() { return _nodes.front().get(); }
+		nodes::node* output_node() { return _nodes.back().get(); }
 
-		void loss_derivative(const vector& y, const vector& t, vector& dy);
+		const tensor& _forwards(const tensor& x, bool is_training = true);
+		const tensor& _backwards(const tensor& dy, bool is_training = true);
+		void _update();
+
+		void loss_derivative(const tensor& y, const tensor& t, tensor& dy);
 	};
 }

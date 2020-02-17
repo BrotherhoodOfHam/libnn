@@ -4,66 +4,45 @@
 
 #pragma once
 
-#include "base.h"
+#include "tensors.h"
 
 namespace nn
 {
 	namespace nodes
 	{
-		enum class node_type : uint8_t
-		{
-			simple = 0,
-			parametric = 1,
-		};
-
-		// Base class for nodes. You should derive from either node/parametric_node
-		class node_base
+		/*
+			Node representing a single differentiable operation
+		*/
+		class node
 		{
 		private:
 
-			node_type _type;
-			size_t _input_size;
-			size_t _output_size;
+			tensor_shape _input_shape;
+			tensor_shape _output_shape;
+			bool         _is_training;
 
 		public:
 
-			node_base(size_t input_size, size_t output_size, node_type type) :
-				_input_size(input_size), _output_size(output_size), _type(type)
+			node(const tensor_shape& input_shape, const tensor_shape& output_shape) :
+				_input_shape(input_shape), _output_shape(output_shape)
 			{}
 
-			node_base(const node_base&) = delete;
+			node(const node&) = delete;
 
-			inline node_type type() const { return _type; }
-			inline size_t input_size() const { return _input_size; }
-			inline size_t output_size() const { return _output_size; }
+			void set_training(bool is_training) { _is_training = is_training; }
+			bool is_training() { return _is_training; }
 
-			virtual void forward(const vector& x, vector& y) const = 0;
-		};
+			inline const tensor_shape& input_shape() const { return _input_shape; }
+			inline const tensor_shape& output_shape() const { return _output_shape; }
 
-		// Simple node with no learnable parameters
-		class node : public node_base
-		{
-		public:
+			// forward propagate
+			virtual const tensor& forward(const tensor& x) = 0;
 
-			node(size_t input_size, size_t output_size) :
-				node_base(input_size, output_size, node_type::simple)
-			{}
+			// back propagate the gradient
+			virtual const tensor& backward(const tensor& x, const tensor& dy) = 0;
 
-			virtual void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const = 0;
-		};
-
-		// Node with learnable weight and bias parameters
-		class parametric_node : public node_base
-		{
-		public:
-
-			parametric_node(size_t input_size, size_t output_size) :
-				node_base(input_size, output_size, node_type::parametric)
-			{}
-
-			virtual void backward(const vector& y, const vector& x, const vector& dy, vector& dx, matrix& dw, vector& db) const = 0;
-
-			virtual void update_params(const matrix& dw, const vector& db, float r, float k) = 0;
+			// update parameters
+			virtual void update_params(float k, float r) = 0;
 		};
 	}
 }

@@ -18,18 +18,15 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-static size_t arg_max(const vector& v)
+static size_t arg_max(const tensor& v)
 {
-	if (v.length == 0)
-		return -1;
-
-	float max = v[0];
+	float max = v(0);
 	size_t i_max = 0;
-	for (size_t i = 0; i < v.length; i++)
+	for (size_t i = 0; i < v.shape(0); i++)
 	{
-		if (v[i] > max)
+		if (v(i) > max)
 		{
-			max = v[i];
+			max = v(i);
 			i_max = i;
 		}
 	}
@@ -38,62 +35,44 @@ static size_t arg_max(const vector& v)
 
 /*************************************************************************************************************************************/
 
-model::model(size_t input_size, std::vector<layer> layers)
+model::model(size_t input_size, std::vector<layer> layers, float learning_rate)
 {
-	_layers.reserve(layers.size() * 2);
-	_a.reserve(_layers.size() + 1);
-	_dy.reserve(_layers.size() + 1);
-	_dw.reserve(_layers.size());
-	_db.reserve(_layers.size());
-
-	_a.emplace_back(input_size);
-	_dy.emplace_back(input_size);
-
-	size_t i = 0;
+	_learning_rate = learning_rate;
 	size_t layer_input = input_size;
 
 	for (const auto& layer_desc : layers)
 	{
-		i++;
+		_nodes.push_back(std::make_unique<dense_layer>(layer_input, layer_desc.size));
 
-		_layers.push_back(std::make_unique<dense_layer>(layer_input, layer_desc.size));
-		_a.emplace_back(layer_desc.size);
-		_dy.emplace_back(layer_desc.size);
-		_dw.emplace_back(layer_desc.size, layer_input);
-		_db.emplace_back(layer_desc.size);
-
-		std::unique_ptr<node_base> act_ptr;
+		std::unique_ptr<activation_node> actv;
 
 		switch (layer_desc.actv)
 		{
 		case activation::linear:
-			act_ptr = std::make_unique<linear_activation>(layer_desc.size);
+			actv = std::make_unique<linear_activation>(layer_desc.size);
 			break;
 		case activation::sigmoid:
-			act_ptr = std::make_unique<sigmoid_activation>(layer_desc.size);
+			actv = std::make_unique<sigmoid_activation>(layer_desc.size);
 			break;
 		case activation::tanh:
-			act_ptr = std::make_unique<tanh_activation>(layer_desc.size);
+			actv = std::make_unique<tanh_activation>(layer_desc.size);
 			break;
 		case activation::relu:
-			act_ptr = std::make_unique<relu_activation>(layer_desc.size);
+			actv = std::make_unique<relu_activation>(layer_desc.size);
 			break;
 		case activation::leaky_relu:
-			act_ptr = std::make_unique<leaky_relu_activation>(layer_desc.size, layer_desc.leakiness);
+			actv = std::make_unique<leaky_relu_activation>(layer_desc.size, layer_desc.leakiness);
 			break;
 		case activation::softmax:
-			act_ptr = std::make_unique<softmax_activation>(layer_desc.size);
+			actv = std::make_unique<softmax_activation>(layer_desc.size);
 			break;
 		}
 
-		_layers.push_back(std::move(act_ptr));
-		_a.emplace_back(layer_desc.size);
-		_dy.emplace_back(layer_desc.size);
-		_dw.emplace_back(0, 0);
-		_db.emplace_back(0);
-
+		_nodes.push_back(std::move(actv));
 		layer_input = layer_desc.size;
 	}
+
+	_activations.reserve(_nodes.size() + 1);
 }
 
 model::~model()
@@ -101,161 +80,179 @@ model::~model()
 
 }
 
-size_t model::input_size() const { return _layers.front()->input_size(); }
-size_t model::output_size() const { return _layers.back()->output_size(); }
+tensor_shape model::input_size() const { return _nodes.front()->input_shape(); }
+tensor_shape model::output_size() const { return _nodes.back()->output_shape(); }
 
 /*************************************************************************************************************************************/
 
-void model::train(std::vector<std::pair<vector, vector>> training_set, std::vector<std::pair<vector, vector>> testing_set, size_t epochs, float learning_rate, float regularization_term)
+void model::train(
+	const std::vector<tensor>& x_train,
+	const std::vector<tensor>& y_train,
+	const std::vector<tensor>& x_test,
+	const std::vector<tensor>& y_test,
+	size_t epochs
+)
 {
-	const float k = learning_rate;
-	const float r = 1 - (learning_rate * regularization_term / training_set.size());
+	assert(x_train.size() == y_train.size());
+	assert(x_test.size() == y_test.size());
+
+	std::vector<size_t> indices(x_train.size());
+	std::iota(indices.begin(), indices.end(), 0);
 
 	for (size_t ep = 0; ep < epochs; ep++)
 	{
-		std::cout << "epoch " << ep << ":" << std::endl;
+		std::cout << time_stamp << " epoch " << ep << ":" << std::endl;
 
-		std::shuffle(training_set.begin(), training_set.end(), std::default_random_engine(ep));
+		std::shuffle(indices.begin(), indices.end(), std::default_random_engine(ep));
 
 		auto first = std::chrono::system_clock::now();
 		auto last = first;
 		size_t c = 0;
-		for (const auto& p : training_set)
+		float training_loss = 0.0f;
+
+		for (size_t i : indices)
 		{
 			auto t = std::chrono::system_clock::now();
 			if ((t - last) > std::chrono::seconds(1))
 			{
-				std::cout << "(" << c << "/" << training_set.size() << ") ";
-				std::cout << std::round(1000.0f * (float)c / training_set.size()) / 10 << "%" << std::endl;
+				std::cout << "(" << c << "/" << x_train.size() << ") ";
+				std::cout << std::round(1000.0f * (float)c / x_train.size()) / 10 << "%" << "                            \r";
 				last = t;
 			}
-
-			train_batch(p.first, p.second, k, r);
+			
+			//training
+			training_loss += train_batch(x_train[i], y_train[i]);
 
 			c++;
 		}
 
-		double error = 0.0;
+		std::cout << "(" << c << "/" << x_train.size() << ") 100%";
+		std::cout << std::endl;
+
+		training_loss /= x_train.size();
+		double loss = 0.0;
 		size_t correct = 0;
-		for (const auto& p : testing_set)
+
+		for (size_t i = 0; i < x_test.size(); i++)
 		{
-			const auto& prediction = forward(p.first);
+			const auto& prediction = forward(x_test[i]);
 
-			for (size_t i = 0; i < prediction.length; i++)
-				error += std::pow(prediction[i] - p.second[i], 2);
+			for (size_t i = 0; i < prediction.shape(0); i++)
+				loss += std::pow(prediction(i) - y_test[i](i), 2);
 
-			if (arg_max(prediction) == arg_max(p.second))
+			if (arg_max(prediction) == arg_max(y_test[i]))
 				correct++;
 		}
-		error /= (2.0 * testing_set.size());
+		loss /= (2.0 * x_test.size());
 
-		std::cout << "mse: " << error << " | recognised: (" << correct << " / " << testing_set.size() << ")" << std::endl;
+		std::cout << "testing loss: " << loss
+				<< " | training loss: " << training_loss
+				<< " | accuracy: (" << correct << " / " << x_test.size() << ")" << std::endl;
 	}
 }
 
-void model::train_batch(const vector& x, const vector& y, float k, float r)
+
+float model::train_batch(const tensor& x, const tensor& y)
 {
-	assert(_layers.back()->output_size() == y.length);
-	assert(_layers.front()->input_size() == x.length);
+	tensor::check(output_node()->output_shape(), y.shape());
+	tensor::check(input_node()->input_shape(), x.shape());
 
 	//forward prop
-	_forwards(x);
+	const auto& a = _forwards(x);
+
+	tensor dy(output_node()->output_shape());
 
 	//backward prop
-	loss_derivative(_a.back(), y, _dy.back());
-	_backwards(_dy.back());
+	loss_derivative(a, y, dy);
+	_backwards(dy);
 
 	//optimize
-	_update(k, r);
+	_update();
+
+	float loss = 0.0f;
+	for (size_t i = 0; i < dy.shape(0); i++)
+		loss += dy(i) * dy(i);
+	return loss;
 }
 
-const vector& model::forward_backwards(const vector& x, const vector& y)
+const tensor& model::forward_backwards(const tensor& x, const tensor& t)
 {
-	assert(_layers.back()->output_size() == y.length);
-	assert(_layers.front()->input_size() == x.length);
+	tensor::check(output_node()->output_shape(), t.shape());
+	tensor::check(input_node()->input_shape(), x.shape());
 
 	//forward prop
-	_forwards(x);
+	const tensor& y = _forwards(x);
+	tensor dy(output_node()->output_shape());
 
 	//backward prop
-	loss_derivative(_a.back(), y, _dy.back());
-	_backwards(_dy.back());
-
-	return _dy[0];
+	loss_derivative(y, t, dy);
+	return _backwards(dy);
 }
 
-void model::train_from_gradient(const vector& dy, float k, float r)
+void model::train_from_gradient(const tensor& dy)
 {
-	assert(_dy.back().length == dy.length);
-
 	//backward prop
 	_backwards(dy);
 	//optimize
-	_update(k, r);
+	_update();
 }
 
-const vector& model::forward(const vector& x)
+const tensor& model::forward(const tensor& x)
 {
-	_forwards(x);
-	return _a.back();
+	return _forwards(x, false);
 }
 
 /*************************************************************************************************************************************/
 
-void model::_forwards(const vector& x)
+const tensor& model::_forwards(const tensor& x, bool is_training)
 {
-	assert(_a.front().length == x.length);
+	_activations.clear();
 
-	//copy arguments
-	for (size_t i = 0; i < x.length; i++)
-		_a[0][i] = x[i];
+	auto a = std::ref(x);
+	_activations.push_back(a);
 
-	for (size_t i = 0; i < _layers.size(); i++)
-		_layers[i]->forward(_a[i], _a[i + 1]);
-}
-
-void model::_backwards(const vector& dy)
-{
-	assert(_dy.back().length == dy.length);
-
-	//copy arguments
-	for (size_t i = 0; i < dy.length; i++)
-		_dy.back()[i] = dy[i];
-
-	for (int i = _layers.size() - 1; i >= 0; i--)
+	for (auto& node : _nodes)
 	{
-		const node_base* layer = _layers[i].get();
-		if (layer->type() == node_type::simple)
-		{
-			static_cast<const node*>(layer)->backward(_a[i + 1], _a[i], _dy[i + 1], _dy[i]);
-		}
-		else if (layer->type() == node_type::parametric)
-		{
-			static_cast<const parametric_node*>(layer)->backward(_a[i + 1], _a[i], _dy[i + 1], _dy[i], _dw[i], _db[i]);
-		}
+		node->set_training(is_training);
+		a = node->forward(a);
+		_activations.push_back(a);
 	}
+
+	return a;
 }
 
-void model::_update(float k, float r)
+const tensor& model::_backwards(const tensor& dy, bool is_training)
+{
+	//_forwards must be called
+	assert(_activations.size() > 0);
+
+	auto d = std::ref(dy);
+
+	for (int i = _nodes.size() - 1; i >= 0; i--)
+	{
+		auto node = _nodes[i].get();
+		node->set_training(is_training);
+		d = node->backward(_activations[i], d);
+	}
+
+	return d;
+}
+
+void model::_update()
 {
 	//apply optimization
-	for (size_t i = 0; i < _layers.size(); i++)
-	{
-		node_base* layer = _layers[i].get();
-
-		if (layer->type() == node_type::parametric)
-			static_cast<parametric_node*>(layer)->update_params(_dw[i], _db[i], k, r);
-	}
+	for (auto& node : _nodes)
+		node->update_params(_learning_rate, 1);
 }
 
-void model::loss_derivative(const vector& y, const vector& t, vector& dy)
+void model::loss_derivative(const tensor& y, const tensor& t, tensor& dy)
 {
-	assert(dy.length == t.length);
-	assert(dy.length == y.length);
+	tensor::check(dy, t);
+	tensor::check(dy, y);
 
-	for (size_t i = 0; i < dy.length; i++)
+	for (size_t i = 0; i < dy.shape(0); i++)
 	{
-		dy[i] = y[i] - t[i];
+		dy(i) = y(i) - t(i);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
-	Simple fully connected layer
+	Dropout regularization node
 */
 
 #pragma once
@@ -10,21 +10,18 @@ namespace nn
 {
 	namespace nodes
 	{
-		class dense_layer : public node
+		class dropout : public node
 		{
-			tensor w, dw;
-			tensor b, db;
-			tensor y, dx;
-
+			float _probability;
+			tensor v;
+			
 		public:
 
-			dense_layer(size_t input_size, size_t layer_size);
+			dropout(size_t input_size, float probability);
 
 			const tensor& forward(const tensor& x) override;
 
 			const tensor& backward(const tensor& x, const tensor& dy) override;
-
-			void update_params(float k, float r) override;
 		};
 	}
 }

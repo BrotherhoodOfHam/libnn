@@ -12,127 +12,111 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-void linear_activation::forward(const vector& x, vector& y) const
+const tensor& linear_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		y[i] = x[i];
+	return x;
+	/*
+	return activate(x, [](scalar x, scalar y) {
+		return x;
+	});
+	*/
 }
 
-void linear_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& linear_activation::backward(const tensor& x, const tensor& dy)
 {
-	assert(x.length == y.length);
-	assert(x.length == dy.length);
-	assert(x.length == dx.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = dy[i];
+	return dy;
+	/*
+	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
+		return dy;
+	});
+	*/
 }
 
 /*************************************************************************************************************************************/
 
-void sigmoid_activation::forward(const vector& x, vector& y) const
+const tensor& sigmoid_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		y[i] = 1.0f / (1.0f + std::exp(-x[i]));
+	return activate(x, [](scalar x, scalar y) {
+		return 1.0f / (1.0f + std::exp(-x));
+	});
 }
 
-void sigmoid_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& sigmoid_activation::backward(const tensor& x, const tensor& dy)
 {
-	assert(x.length == y.length);
-	assert(x.length == dy.length);
-	assert(x.length == dx.length);
-
 	// σ'(x) = σ(x) * (1 - σ(x))
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = (y[i] * (1.0f - y[i])) * dy[i];
+	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
+		return (y * (1.0f - y)) * dy;
+	});
 }
 
 /*************************************************************************************************************************************/
 
-void tanh_activation::forward(const vector& x, vector& y) const
+const tensor& tanh_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
-	for (size_t i = 0; i < x.length; i++)
-	{
-		scalar a = std::exp(x[i]);
+	return activate(x, [](scalar x, scalar y) {
+		scalar a = std::exp(x);
 		scalar b = 1.0f / a;
-		y[i] = (a - b) / (a + b);
-	}
+		return (a - b) / (a + b);
+	});
 }
 
-void tanh_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& tanh_activation::backward(const tensor& x, const tensor& dy)
 {
-	assert(x.length == y.length);
-	assert(x.length == dy.length);
-	assert(x.length == dx.length);
-
 	// tanh'(x) = 1 - tanh(x)^2
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = (1 - (y[i] * y[i])) * dy[i];
+	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
+		return (1 - (y * y)) * dy;
+	});
 }
 
 /*************************************************************************************************************************************/
 
-void relu_activation::forward(const vector& x, vector& y) const
+const tensor& relu_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		y[i] = std::max(x[i], 0.0f);
+	return activate(x, [](scalar x, scalar y) {
+		return std::max(x, 0.0f);
+	});
 }
 
-void relu_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& relu_activation::backward(const tensor& x, const tensor& dy)
 {
-	assert(x.length == y.length);
-	assert(x.length == dy.length);
-	assert(x.length == dx.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = (x[i] > 0.0f) ? dy[i] : 0;
+	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
+		return (x > 0.0f) ? dy : 0;
+	});
 }
 
 /*************************************************************************************************************************************/
 
-void leaky_relu_activation::forward(const vector& x, vector& y) const
+const tensor& leaky_relu_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		y[i] = (x[i] > 0) ? x[i] : _leakiness * x[i];
+	return activate(x, [=](scalar x, scalar y) {
+		return (x > 0) ? x : _leakiness * x;
+	});
 }
 
-void leaky_relu_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& leaky_relu_activation::backward(const tensor& x, const tensor& dy)
 {
-	assert(x.length == y.length);
-	assert(x.length == dy.length);
-	assert(x.length == dx.length);
-
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = (x[i] > 0) ? dy[i] : _leakiness * dy[i];
+	return derivative(x, dy, [=](scalar x, scalar y, scalar dy, scalar dx) {
+		return ((x > 0) ? 1.0f : _leakiness) * dy;
+	});
 }
 
 /*************************************************************************************************************************************/
 
-void softmax_activation::forward(const vector& x, vector& y) const
+const tensor& softmax_activation::forward(const tensor& x)
 {
-	assert(x.length == y.length);
-
 	scalar sum = 0.0f;
-	for (size_t i = 0; i < x.length; i++)
-	{
-		y[i] = std::exp(x[i]);
-		sum += y[i];
-	}
-	for (size_t i = 0; i < x.length; i++)
-		y[i] /= sum;
+
+	activate(x, [&sum](scalar x, scalar y) {
+		scalar a = std::exp(x);
+		sum += a;
+		return a;
+	});
+	return activate(x, [&sum](scalar x, scalar y) {
+		return y / sum;
+	});
 }
 
-void softmax_activation::backward(const vector& y, const vector& x, const vector& dy, vector& dx) const
+const tensor& softmax_activation::backward(const tensor& x, const tensor& dy)
 {
 	/*
 	for (size_t j = 0; j < x.length; j++)
@@ -152,8 +136,9 @@ void softmax_activation::backward(const vector& y, const vector& x, const vector
 
 	// this is a workaround for when the softmax activation is the final node
 	// when computing the p.d. the above method doesn't work with the cost function
-	for (size_t i = 0; i < x.length; i++)
-		dx[i] = dy[i];
+	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
+		return dy;
+	});
 }
 
 /*************************************************************************************************************************************/

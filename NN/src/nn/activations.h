@@ -13,11 +13,43 @@ namespace nn
 		// Base node for activations
 		class activation_node : public node
 		{
+		protected:
+
+			tensor y, dx;
+
 		public:
 
-			activation_node(size_t input_size) :
-				node::node(input_size, input_size)
+
+			activation_node(const tensor_shape& input) :
+				y(input), dx(input),
+				node(input, input)
 			{}
+
+			void update_params(float k, float r) override {}
+
+		protected:
+
+			template<class function_type>
+			const tensor& activate(const tensor& x, const function_type& func)
+			{
+				for (size_t i = 0; i < x.memory_size(); i++)
+				{
+					//y = f(x, [y])
+					y.at_index(i) = func(x.at_index(i), y.at_index(i));
+				}
+				return y;
+			}
+
+			template<class function_type>
+			const tensor& derivative(const tensor& x, const tensor& dy, const function_type& func)
+			{
+				for (size_t i = 0; i < x.memory_size(); i++)
+				{
+					//dx = f'(x, y, dy, [dx])
+					dx.at_index(i) = func(x.at_index(i), y.at_index(i), dy.at_index(i), dx.at_index(i));
+				}
+				return dx;
+			}
 		};
 
 		// Linear function:
@@ -28,9 +60,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 
 		// Sigmoid function:
@@ -41,9 +72,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 
 		// TanH function:
@@ -54,9 +84,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 
 		// Rectified Linear Unit function:
@@ -67,9 +96,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 
 		// Leaky Rectified Linear Unit function:
@@ -85,9 +113,8 @@ namespace nn
 				_leakiness(leakiness)
 			{}
 
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 
 		// Softmax function:
@@ -97,10 +124,9 @@ namespace nn
 		public:
 
 			using activation_node::activation_node;
-
-			void forward(const vector& x, vector& y) const override;
-
-			void backward(const vector& y, const vector& x, const vector& dy, vector& dx) const override;
+			
+			const tensor& forward(const tensor& x) override;
+			const tensor& backward(const tensor& x, const tensor& dy) override;
 		};
 	}
 }
