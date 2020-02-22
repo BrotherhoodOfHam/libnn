@@ -77,6 +77,7 @@ int gan_main()
 		{
 			layer(256, activation::leaky_relu),
 			layer(512, activation::leaky_relu),
+			layer(1024, activation::leaky_relu),
 			layer(img_size, activation::tanh),
 		},
 		0.01f
@@ -84,8 +85,9 @@ int gan_main()
 	model d(
 		img_size,
 		{
-			layer(512, activation::leaky_relu),
-			layer(256, activation::leaky_relu),
+			layer(1024, activation::leaky_relu, 0.1f, 0.3f),
+			layer(512, activation::leaky_relu, 0.1f, 0.3f),
+			layer(256, activation::leaky_relu, 0.1f, 0.3f),
 			layer(1, activation::sigmoid),
 		},
 		0.01f
@@ -121,13 +123,13 @@ int gan_main()
 int main()
 {
 	//!!!!!!!!!!!!!!!!!
-	//return test_main();
+	return gan_main();
 
 	dataset ds = load_mnist();
 
 	model classifier(
 		28*28, {
-			layer(100, activation::relu),
+			layer(100, activation::relu, 0.1f, 0.2f),
 			layer(32, activation::relu),
 			layer(10, activation::softmax)
 		},
@@ -138,6 +140,8 @@ int main()
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
 		10
 	);
+
+	classifier.serialize("classifier.bin");
 
 	return 0;
 }

@@ -15,21 +15,11 @@ using namespace nn::nodes;
 const tensor& linear_activation::forward(const tensor& x)
 {
 	return x;
-	/*
-	return activate(x, [](scalar x, scalar y) {
-		return x;
-	});
-	*/
 }
 
 const tensor& linear_activation::backward(const tensor& x, const tensor& dy)
 {
 	return dy;
-	/*
-	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
-		return dy;
-	});
-	*/
 }
 
 /*************************************************************************************************************************************/

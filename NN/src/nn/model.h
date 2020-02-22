@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Neural Network Model
 */
 
@@ -56,7 +56,7 @@ namespace nn
 
 		tensor_shape input_size() const;
 		tensor_shape output_size() const;
-
+		
 		void train(
 			const std::vector<tensor>& x_train,
 			const std::vector<tensor>& y_train,
@@ -72,6 +72,10 @@ namespace nn
 		const tensor& forward(const tensor& x);
 
 		const tensor& forward_backwards(const tensor& x, const tensor& y);
+
+		// serialization
+		bool serialize(const std::string& filename);
+		bool deserialize(const std::string& filename);
 
 	private:
 

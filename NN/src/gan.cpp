@@ -64,8 +64,9 @@ void gan::train(const std::vector<tensor>& data, size_t epochs)
 
 		std::cout << "(" << c << "/" << data.size() << ") 100%";
 		std::cout << std::endl;
-
+		
 		save_generated_images(e);
+		_g->serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
 	}
 }
 

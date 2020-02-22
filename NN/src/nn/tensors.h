@@ -187,6 +187,8 @@ namespace nn
 		inline scalar at_index(uint i) const { return _data[i]; }
 		inline scalar& at_index(uint i) { return _data[i]; }
 		inline size_t memory_size() const { return _data.size(); }
+		inline const scalar* memory() const { return _data.data(); }
+		inline scalar* memory() { return _data.data(); }
 
 	private:
 

@@ -25,6 +25,9 @@ namespace nn
 			const tensor& backward(const tensor& x, const tensor& dy) override;
 
 			void update_params(float k, float r) override;
+
+			const tensor& weights() const { return w; }
+			const tensor& biases() const { return b; }
 		};
 	}
 }
