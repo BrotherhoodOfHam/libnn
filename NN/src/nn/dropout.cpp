@@ -9,13 +9,13 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-dropout::dropout(size_t input_size, float probability) :
-	y(input_size),
-	dx(input_size),
-	p(input_size),
+dropout::dropout(const tensor_shape& input_shape, float probability) :
+	y(input_shape),
+	dx(input_shape),
+	p(input_shape),
 	_probability(probability),
 	_distribution(probability),
-	node(input_size, input_size)
+	node(input_shape, input_shape)
 {
 }
 

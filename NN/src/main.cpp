@@ -4,6 +4,9 @@
 
 #include "mnist/mnist_reader_less.hpp"
 #include "nn/model.h"
+#include "nn/activations.h"
+#include "nn/dense_layer.h"
+#include "nn/dropout.h"
 #include "gan.h"
 
 #include "nn/tensors.h"
@@ -72,28 +75,32 @@ int gan_main()
 	const size_t z_size = 10;
 	const size_t img_size = 28 * 28;
 
-	model g(
-		z_size,
-		{
-			layer(256, activation::leaky_relu),
-			layer(512, activation::leaky_relu),
-			layer(1024, activation::leaky_relu),
-			layer(img_size, activation::tanh),
-		},
-		0.01f
-	);
-	model d(
-		img_size,
-		{
-			layer(1024, activation::leaky_relu, 0.1f, 0.3f),
-			layer(512, activation::leaky_relu, 0.1f, 0.3f),
-			layer(256, activation::leaky_relu, 0.1f, 0.3f),
-			layer(1, activation::sigmoid),
-		},
-		0.01f
-	);
+	model g(z_size, 1, 0.01f);
+	g.add<dense_layer>(256);
+	g.add<activation::leaky_relu>(0.1f);
+	g.add<dense_layer>(512);
+	g.add<activation::leaky_relu>(0.1f);
+	g.add<dense_layer>(1024);
+	g.add<activation::leaky_relu>(0.1f);
+	g.add<dense_layer>(img_size);
+	g.add<activation::tanh>();
+	g.compile();
 
-	gan gn(&g, &d);
+	model d(img_size, 1, 0.01f);
+	d.add<dense_layer>(1024);
+	d.add<activation::leaky_relu>(0.1f);
+	d.add<dropout>(0.3f);
+	d.add<dense_layer>(512);
+	d.add<activation::leaky_relu>(0.1f);
+	d.add<dropout>(0.3f);
+	d.add<dense_layer>(256);
+	d.add<activation::leaky_relu>(0.1f);
+	d.add<dropout>(0.3f);
+	d.add<dense_layer>(1);
+	d.add<activation::sigmoid>();
+	d.compile();
+
+	gan gn(g, d);
 
 	//prepare data
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
@@ -123,18 +130,19 @@ int gan_main()
 int main()
 {
 	//!!!!!!!!!!!!!!!!!
-	return gan_main();
+	//return gan_main();
 
 	dataset ds = load_mnist();
 
-	model classifier(
-		28*28, {
-			layer(100, activation::relu, 0.1f, 0.2f),
-			layer(32, activation::relu),
-			layer(10, activation::softmax)
-		},
-		0.01f
-	);
+	model classifier(28*28, 1, 0.01f);
+	classifier.add<dense_layer>(100);
+	classifier.add<activation::relu>();
+	classifier.add<dropout>(0.2f);
+	classifier.add<dense_layer>(32);
+	classifier.add<activation::relu>();
+	classifier.add<dense_layer>(10);
+	classifier.add<activation::softmax>();
+	classifier.compile();
 
 	classifier.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,

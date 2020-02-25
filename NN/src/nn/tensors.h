@@ -106,6 +106,20 @@ namespace nn
 			assert(i < _length);
 			return _shape[i];
 		}
+
+		static bool equals(const tensor_shape& lhs, const tensor_shape& rhs)
+		{
+			if (lhs.length() != rhs.length())
+				return false;
+
+			for (uint i = 0; i < lhs.length(); i++)
+			{
+				if (lhs[i] != rhs[i])
+					return false;
+			}
+
+			return true;
+		}
 	};
 
 	/*
@@ -170,18 +184,6 @@ namespace nn
 		inline scalar& operator()(args_t ... index) { return at(index...); }
 		template<class ... args_t, uint n = sizeof...(args_t)>
 		inline scalar operator()(args_t ... index) const { return at(index...); }
-
-		// check if two tensor shapes are equivalent
-		static void check(const tensor_shape& lhs, const tensor_shape& rhs)
-		{
-			assert(lhs.length() == rhs.length());
-
-			for (uint i = 0; i < lhs.length(); i++)
-			{
-				assert(lhs[i] == rhs[i]);
-			}
-		}
-		static void check(const tensor& lhs, const tensor& rhs) { return check(lhs.shape(), rhs.shape()); }
 
 		// Get element at 1D index
 		inline scalar at_index(uint i) const { return _data[i]; }

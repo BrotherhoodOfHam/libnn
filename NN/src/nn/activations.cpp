@@ -8,30 +8,29 @@
 #include "activations.h"
 
 using namespace nn;
-using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-const tensor& linear_activation::forward(const tensor& x)
+const tensor& activation::linear::forward(const tensor& x)
 {
 	return x;
 }
 
-const tensor& linear_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::linear::backward(const tensor& x, const tensor& dy)
 {
 	return dy;
 }
 
 /*************************************************************************************************************************************/
 
-const tensor& sigmoid_activation::forward(const tensor& x)
+const tensor& activation::sigmoid::forward(const tensor& x)
 {
 	return activate(x, [](scalar x, scalar y) {
 		return 1.0f / (1.0f + std::exp(-x));
 	});
 }
 
-const tensor& sigmoid_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::sigmoid::backward(const tensor& x, const tensor& dy)
 {
 	// σ'(x) = σ(x) * (1 - σ(x))
 	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
@@ -41,7 +40,7 @@ const tensor& sigmoid_activation::backward(const tensor& x, const tensor& dy)
 
 /*************************************************************************************************************************************/
 
-const tensor& tanh_activation::forward(const tensor& x)
+const tensor& activation::tanh::forward(const tensor& x)
 {
 	return activate(x, [](scalar x, scalar y) {
 		scalar a = std::exp(x);
@@ -50,7 +49,7 @@ const tensor& tanh_activation::forward(const tensor& x)
 	});
 }
 
-const tensor& tanh_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::tanh::backward(const tensor& x, const tensor& dy)
 {
 	// tanh'(x) = 1 - tanh(x)^2
 	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
@@ -60,14 +59,14 @@ const tensor& tanh_activation::backward(const tensor& x, const tensor& dy)
 
 /*************************************************************************************************************************************/
 
-const tensor& relu_activation::forward(const tensor& x)
+const tensor& activation::relu::forward(const tensor& x)
 {
 	return activate(x, [](scalar x, scalar y) {
 		return std::max(x, 0.0f);
 	});
 }
 
-const tensor& relu_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::relu::backward(const tensor& x, const tensor& dy)
 {
 	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
 		return (x > 0.0f) ? dy : 0;
@@ -76,14 +75,14 @@ const tensor& relu_activation::backward(const tensor& x, const tensor& dy)
 
 /*************************************************************************************************************************************/
 
-const tensor& leaky_relu_activation::forward(const tensor& x)
+const tensor& activation::leaky_relu::forward(const tensor& x)
 {
 	return activate(x, [=](scalar x, scalar y) {
 		return (x > 0) ? x : _leakiness * x;
 	});
 }
 
-const tensor& leaky_relu_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::leaky_relu::backward(const tensor& x, const tensor& dy)
 {
 	return derivative(x, dy, [=](scalar x, scalar y, scalar dy, scalar dx) {
 		return ((x > 0) ? 1.0f : _leakiness) * dy;
@@ -92,7 +91,7 @@ const tensor& leaky_relu_activation::backward(const tensor& x, const tensor& dy)
 
 /*************************************************************************************************************************************/
 
-const tensor& softmax_activation::forward(const tensor& x)
+const tensor& activation::softmax::forward(const tensor& x)
 {
 	scalar sum = 0.0f;
 
@@ -106,7 +105,7 @@ const tensor& softmax_activation::forward(const tensor& x)
 	});
 }
 
-const tensor& softmax_activation::backward(const tensor& x, const tensor& dy)
+const tensor& activation::softmax::backward(const tensor& x, const tensor& dy)
 {
 	/*
 	for (size_t j = 0; j < x.length; j++)

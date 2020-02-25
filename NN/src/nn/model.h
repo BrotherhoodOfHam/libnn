@@ -4,18 +4,17 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "common.h"
 #include "tensors.h"
+#include "nodes.h"
 
 /*************************************************************************************************************************************/
 
 namespace nn
 {
-	namespace nodes
-	{
-		class node;
-	}
-
+	/*
 	enum class activation
 	{
 		linear,
@@ -25,34 +24,40 @@ namespace nn
 		leaky_relu,
 		softmax,
 	};
-
-	struct layer
+	*/
+	class base_model
 	{
-		size_t size;
-		activation actv;
-		float leakiness;
-		float dropout;
+	protected:
 
-		layer(size_t _data_size, activation _actv = activation::sigmoid, float _leakiness = 0.1f, float _dropout = 0.0f) :
-			size(_data_size),
-			actv(_actv),
-			leakiness(_leakiness),
-			dropout(_dropout)
-		{}
+		std::vector<std::unique_ptr<nodes::node>> _nodes;
+
+
 	};
 
 	class model
 	{
 		std::vector<std::unique_ptr<nodes::node>> _nodes;
 		std::vector<std::reference_wrapper<const tensor>> _activations;
+		tensor_shape _input_shape;
 		float _learning_rate;
+		bool _compiled;
 
 	public:
 
-		model(size_t input_size, std::vector<layer> layers, float learning_rate);
+		model(const tensor_shape& input_shape, size_t max_batch_size, float learning_rate);
 		~model();
 
 		model(const model&) = delete;
+
+		// add node
+		template<typename node_type, typename = std::enable_if_t<std::is_convertible_v<node_type*, nodes::node*>>, typename ... args_type>
+		void add(args_type&& ... args)
+		{
+			const tensor_shape& shape = _nodes.empty() ? _input_shape : _nodes.back()->output_shape();
+			_nodes.push_back(std::make_unique<node_type>(shape, std::forward<args_type>(args)...));
+		}
+
+		void compile();
 
 		tensor_shape input_size() const;
 		tensor_shape output_size() const;

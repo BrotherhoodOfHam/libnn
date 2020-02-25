@@ -38,10 +38,10 @@ bool model::serialize(const std::string& filename)
 		return false;
 	}
 
-	std::vector<nodes::dense_layer*> layers;
+	std::vector<dense_layer*> layers;
 	for (auto& node : _nodes)
 	{
-		auto dense = dynamic_cast<nodes::dense_layer*>(node.get());
+		auto dense = dynamic_cast<dense_layer*>(node.get());
 		if (dense != nullptr) layers.push_back(dense);
 	}
 
@@ -79,10 +79,10 @@ bool model::deserialize(const std::string& filename)
 		return false;
 	}
 
-	std::vector<nodes::dense_layer*> layers;
+	std::vector<dense_layer*> layers;
 	for (auto& node : _nodes)
 	{
-		auto dense = dynamic_cast<nodes::dense_layer*>(node.get());
+		auto dense = dynamic_cast<dense_layer*>(node.get());
 		if (dense != nullptr) layers.push_back(dense);
 	}
 

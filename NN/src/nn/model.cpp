@@ -36,57 +36,21 @@ static size_t arg_max(const tensor& v)
 
 /*************************************************************************************************************************************/
 
-model::model(size_t input_size, std::vector<layer> layers, float learning_rate)
-{
-	_learning_rate = learning_rate;
-	size_t layer_input = input_size;
+model::model(const tensor_shape& input_shape, size_t batch_size, float learning_rate) :
+	_input_shape(input_shape),
+	_learning_rate(learning_rate),
+	_compiled(false)
+{}
 
-	for (const auto& layer_desc : layers)
-	{
-		_nodes.push_back(std::make_unique<dense_layer>(layer_input, layer_desc.size));
-
-		std::unique_ptr<activation_node> actv;
-
-		switch (layer_desc.actv)
-		{
-		case activation::linear:
-			actv = std::make_unique<linear_activation>(layer_desc.size);
-			break;
-		case activation::sigmoid:
-			actv = std::make_unique<sigmoid_activation>(layer_desc.size);
-			break;
-		case activation::tanh:
-			actv = std::make_unique<tanh_activation>(layer_desc.size);
-			break;
-		case activation::relu:
-			actv = std::make_unique<relu_activation>(layer_desc.size);
-			break;
-		case activation::leaky_relu:
-			actv = std::make_unique<leaky_relu_activation>(layer_desc.size, layer_desc.leakiness);
-			break;
-		case activation::softmax:
-			actv = std::make_unique<softmax_activation>(layer_desc.size);
-			break;
-		}
-
-		_nodes.push_back(std::move(actv));
-
-		if (layer_desc.dropout > 0.0f)
-			_nodes.push_back(std::make_unique<dropout>(layer_desc.size, layer_desc.dropout));
-
-		layer_input = layer_desc.size;
-	}
-
-	_activations.reserve(_nodes.size() + 1);
-}
-
-model::~model()
-{
-
-}
+model::~model() {}
 
 tensor_shape model::input_size() const { return _nodes.front()->input_shape(); }
 tensor_shape model::output_size() const { return _nodes.back()->output_shape(); }
+
+void model::compile()
+{
+	_compiled = true;
+}
 
 /*************************************************************************************************************************************/
 
@@ -159,9 +123,6 @@ void model::train(
 
 float model::train_batch(const tensor& x, const tensor& y)
 {
-	tensor::check(output_node()->output_shape(), y.shape());
-	tensor::check(input_node()->input_shape(), x.shape());
-
 	//forward prop
 	const auto& a = _forwards(x);
 
@@ -182,9 +143,6 @@ float model::train_batch(const tensor& x, const tensor& y)
 
 const tensor& model::forward_backwards(const tensor& x, const tensor& t)
 {
-	tensor::check(output_node()->output_shape(), t.shape());
-	tensor::check(input_node()->input_shape(), x.shape());
-
 	//forward prop
 	const tensor& y = _forwards(x);
 	tensor dy(output_node()->output_shape());
@@ -211,6 +169,9 @@ const tensor& model::forward(const tensor& x)
 
 const tensor& model::_forwards(const tensor& x, bool is_training)
 {
+	assert(_compiled);
+	assert(tensor_shape::equals(x.shape(), input_node()->input_shape()));
+
 	_activations.clear();
 
 	auto a = std::ref(x);
@@ -218,7 +179,7 @@ const tensor& model::_forwards(const tensor& x, bool is_training)
 
 	for (auto& node : _nodes)
 	{
-		node->set_training(is_training);
+		node->set_state(is_training);
 		a = node->forward(a);
 		_activations.push_back(a);
 	}
@@ -228,6 +189,8 @@ const tensor& model::_forwards(const tensor& x, bool is_training)
 
 const tensor& model::_backwards(const tensor& dy, bool is_training)
 {
+	assert(_compiled);
+	assert(tensor_shape::equals(dy.shape(), output_node()->output_shape()));
 	//_forwards must be called
 	assert(_activations.size() > 0);
 
@@ -236,7 +199,7 @@ const tensor& model::_backwards(const tensor& dy, bool is_training)
 	for (int i = _nodes.size() - 1; i >= 0; i--)
 	{
 		auto node = _nodes[i].get();
-		node->set_training(is_training);
+		node->set_state(is_training);
 		d = node->backward(_activations[i], d);
 	}
 
@@ -245,6 +208,8 @@ const tensor& model::_backwards(const tensor& dy, bool is_training)
 
 void model::_update()
 {
+	assert(_compiled);
+
 	//apply optimization
 	for (auto& node : _nodes)
 		node->update_params(_learning_rate, 1);
@@ -252,8 +217,8 @@ void model::_update()
 
 void model::loss_derivative(const tensor& y, const tensor& t, tensor& dy)
 {
-	tensor::check(dy, t);
-	tensor::check(dy, y);
+	assert(tensor_shape::equals(dy.shape(), t.shape()));
+	assert(tensor_shape::equals(dy.shape(), y.shape()));
 
 	for (size_t i = 0; i < dy.shape(0); i++)
 	{

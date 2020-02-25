@@ -11,18 +11,18 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-dense_layer::dense_layer(size_t input_size, size_t layer_size) :
-	w(layer_size, input_size), dw(layer_size, input_size),
+dense_layer::dense_layer(const tensor_shape& input_shape, size_t layer_size) :
+	w(layer_size, input_shape.memory_size()), dw(layer_size, input_shape.memory_size()),
 	b(layer_size), db(layer_size),
-	y(layer_size), dx(input_size),
-	node(input_size, layer_size)
+	y(layer_size), dx(input_shape.memory_size()),
+	node(input_shape, layer_size)
 {
 	std::default_random_engine gen;
 	std::normal_distribution<float> dist(0, 1);
-	const float sqrtn = std::sqrt((float)input_size);
+	const float sqrtn = std::sqrt((float)input_shape.memory_size());
 
 	for (size_t j = 0; j < layer_size; j++)
-		for (size_t i = 0; i < input_size; i++)
+		for (size_t i = 0; i < input_shape.memory_size(); i++)
 			w(j,i) = dist(gen) / sqrtn;
 
 	for (size_t i = 0; i < layer_size; i++)
@@ -31,8 +31,6 @@ dense_layer::dense_layer(size_t input_size, size_t layer_size) :
 
 const tensor& dense_layer::forward(const tensor& x)
 {
-	tensor::check(x.shape(), input_shape());
-
 	//for each row:
 	//y = w.x + b
 	for (size_t j = 0; j < w.shape(0); j++)
@@ -50,9 +48,6 @@ const tensor& dense_layer::forward(const tensor& x)
 
 const tensor& dense_layer::backward(const tensor& x, const tensor& dy)
 {
-	tensor::check(x.shape(), input_shape());
-	tensor::check(dy.shape(), output_shape());
-
 	// δ/δy = partial derivative of loss w.r.t to output
 	// the goal is to find the derivatives w.r.t to parameters: δw, δb, δx
 

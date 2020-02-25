@@ -14,7 +14,7 @@ using namespace cimg_library;
 
 void gan::train(const std::vector<tensor>& data, size_t epochs)
 {
-	tensor z_input(_g->input_size());
+	tensor z_input(_g.input_size());
 	tensor g_value(28 * 28);
 	tensor y_d_1(1); y_d_1(0) = 0.9f;
 	tensor y_d_0(1); y_d_0(0) = 0;
@@ -51,22 +51,22 @@ void gan::train(const std::vector<tensor>& data, size_t epochs)
 			for (size_t i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input(i_z) = (scalar)unif(rng);
 
-			_d->train_batch(x_data, y_d_1);
-			_d->train_batch(_g->forward(z_input), y_d_0);
+			_d.train_batch(x_data, y_d_1);
+			_d.train_batch(_g.forward(z_input), y_d_0);
 
 			//randomize z
 			for (size_t i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input(i_z) = (scalar)unif(rng);
 
-			const auto& dy = _d->forward_backwards(_g->forward(z_input), y_g);
-			_g->train_from_gradient(dy);
+			const auto& dy = _d.forward_backwards(_g.forward(z_input), y_g);
+			_g.train_from_gradient(dy);
 		}
 
 		std::cout << "(" << c << "/" << data.size() << ") 100%";
 		std::cout << std::endl;
 		
 		save_generated_images(e);
-		_g->serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
+		_g.serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
 	}
 }
 
@@ -75,7 +75,7 @@ void gan::train(const std::vector<tensor>& data, size_t epochs)
 void gan::save_generated_images(size_t id)
 {
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
-	tensor z_test(_g->input_size());
+	tensor z_test(_g.input_size());
 
 	const size_t scale_factor = 16;
 	const size_t tile_wh = 28 * scale_factor;
@@ -92,7 +92,7 @@ void gan::save_generated_images(size_t id)
 			for (size_t i_z = 0; i_z < z_test.shape(0); i_z++)
 				z_test(i_z) = 2 * ((float)(y_tile * tile_count + x_tile) / (tile_count * tile_count)) - 1;
 
-			const tensor& g = _g->forward(z_test);
+			const tensor& g = _g.forward(z_test);
 
 			const size_t x = (x_tile * tile_wh) + ((x_tile + 1) * border_sz);
 			const size_t y = (y_tile * tile_wh) + ((y_tile + 1) * border_sz);

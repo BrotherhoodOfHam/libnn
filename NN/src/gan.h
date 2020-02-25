@@ -10,16 +10,16 @@ namespace nn
 {
 	class gan
 	{
-		model* _g;
-		model* _d;
+		model& _g;
+		model& _d;
 
 	public:
 
-		gan(model* g, model* d) :
+		gan(model& g, model& d) :
 			_g(g), _d(d)
 		{
-			tensor::check(_g->output_size(), _d->input_size());
-			assert(_d->output_size()[0] == 1);
+			assert(tensor_shape::equals(_g.output_size(), _d.input_size()));
+			assert(_d.output_size()[0] == 1);
 		}
 
 		void train(const std::vector<tensor>& data, size_t epochs);

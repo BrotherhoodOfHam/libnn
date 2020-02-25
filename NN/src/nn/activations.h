@@ -8,10 +8,10 @@
 
 namespace nn
 {
-	namespace nodes
+	namespace activation
 	{
 		// Base node for activations
-		class activation_node : public node
+		class activation_node : public nodes::node
 		{
 		protected:
 
@@ -54,7 +54,7 @@ namespace nn
 
 		// Linear function:
 		//  f(x) = x
-		class linear_activation : public activation_node
+		class linear : public activation_node
 		{
 		public:
 
@@ -66,7 +66,7 @@ namespace nn
 
 		// Sigmoid function:
 		//  f(x) = 1 / (1 + e^-x)
-		class sigmoid_activation : public activation_node
+		class sigmoid : public activation_node
 		{
 		public:
 
@@ -78,7 +78,7 @@ namespace nn
 
 		// TanH function:
 		//  f(x) = (e^x - e^-x) / (e^x + e^-x)
-		class tanh_activation : public activation_node
+		class tanh : public activation_node
 		{
 		public:
 
@@ -90,7 +90,7 @@ namespace nn
 
 		// Rectified Linear Unit function:
 		//  f(x) = max(0, x)
-		class relu_activation : public activation_node
+		class relu : public activation_node
 		{
 		public:
 
@@ -102,14 +102,14 @@ namespace nn
 
 		// Leaky Rectified Linear Unit function:
 		//  f(x, k) = if x > 0 then x else k * x
-		class leaky_relu_activation : public activation_node
+		class leaky_relu : public activation_node
 		{
 			float _leakiness = 0.0f;
 
 		public:
 
-			leaky_relu_activation(size_t input_size, float leakiness) :
-				activation_node(input_size),
+			leaky_relu(const tensor_shape& input_shape, float leakiness) :
+				activation_node(input_shape),
 				_leakiness(leakiness)
 			{}
 
@@ -119,7 +119,7 @@ namespace nn
 
 		// Softmax function:
 		//  f(x) = e^x / sum(e^x)
-		class softmax_activation : public activation_node
+		class softmax : public activation_node
 		{
 		public:
 
