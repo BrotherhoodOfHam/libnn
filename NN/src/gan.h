@@ -18,8 +18,8 @@ namespace nn
 		gan(model& g, model& d) :
 			_g(g), _d(d)
 		{
-			assert(tensor_shape::equals(_g.output_size(), _d.input_size()));
-			assert(_d.output_size()[0] == 1);
+			assert(tensor_shape::equals(_g.output_shape(), _d.input_shape()));
+			assert(_d.output_shape()[0] == 1);
 		}
 
 		void train(const std::vector<tensor>& data, size_t epochs);

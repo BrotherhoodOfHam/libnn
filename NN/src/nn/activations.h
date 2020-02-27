@@ -32,7 +32,7 @@ namespace nn
 			template<class function_type>
 			const tensor& activate(const tensor& x, const function_type& func)
 			{
-				for (size_t i = 0; i < x.memory_size(); i++)
+				for (size_t i = 0; i < x.data_size(); i++)
 				{
 					//y = f(x, [y])
 					y.at_index(i) = func(x.at_index(i), y.at_index(i));
@@ -43,7 +43,7 @@ namespace nn
 			template<class function_type>
 			const tensor& derivative(const tensor& x, const tensor& dy, const function_type& func)
 			{
-				for (size_t i = 0; i < x.memory_size(); i++)
+				for (size_t i = 0; i < x.data_size(); i++)
 				{
 					//dx = f'(x, y, dy, [dx])
 					dx.at_index(i) = func(x.at_index(i), y.at_index(i), dy.at_index(i), dx.at_index(i));

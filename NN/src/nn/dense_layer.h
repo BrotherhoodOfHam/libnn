@@ -14,6 +14,8 @@ namespace nn
 		tensor b, db;
 		tensor y, dx;
 
+		void zero_gradients();
+
 	public:
 
 		dense_layer(const tensor_shape& input_shape, size_t layer_size);

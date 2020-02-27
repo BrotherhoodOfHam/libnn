@@ -36,20 +36,21 @@ static size_t arg_max(const tensor& v)
 
 /*************************************************************************************************************************************/
 
-model::model(const tensor_shape& input_shape, size_t batch_size, float learning_rate) :
-	_input_shape(input_shape),
+model::model(size_t input_size, size_t max_batch_size, float learning_rate) :
+	_input_shape(tensor_shape(max_batch_size, input_size)),
 	_learning_rate(learning_rate),
 	_compiled(false)
 {}
 
 model::~model() {}
 
-tensor_shape model::input_size() const { return _nodes.front()->input_shape(); }
-tensor_shape model::output_size() const { return _nodes.back()->output_shape(); }
+tensor_shape model::input_shape() const { return _nodes.front()->input_shape(); }
+tensor_shape model::output_shape() const { return _nodes.back()->output_shape(); }
 
 void model::compile()
 {
 	_compiled = true;
+	_activations.reserve(_nodes.size() + 1);
 }
 
 /*************************************************************************************************************************************/
@@ -104,9 +105,9 @@ void model::train(
 
 		for (size_t i = 0; i < x_test.size(); i++)
 		{
-			const auto& prediction = forward(x_test[i]);
+			tensor prediction = forward(x_test[i]).reshape(tensor_shape(output_shape()[1]));
 
-			for (size_t i = 0; i < prediction.shape(0); i++)
+			for (size_t i = 0; i < prediction.shape(1); i++)
 				loss += std::pow(prediction(i) - y_test[i](i), 2);
 
 			if (arg_max(prediction) == arg_max(y_test[i]))
@@ -121,8 +122,11 @@ void model::train(
 }
 
 
-float model::train_batch(const tensor& x, const tensor& y)
+float model::train_batch(const tensor& _x, const tensor& _y)
 {
+	tensor x = _x.reshape(input_shape());
+	tensor y = _y.reshape(output_shape());
+
 	//forward prop
 	const auto& a = _forwards(x);
 
@@ -136,13 +140,17 @@ float model::train_batch(const tensor& x, const tensor& y)
 	_update();
 
 	float loss = 0.0f;
-	for (size_t i = 0; i < dy.shape(0); i++)
-		loss += dy(i) * dy(i);
+	for (size_t b = 0; b < dy.shape(0); b++)
+		for (size_t i = 0; i < dy.shape(1); i++)
+			loss += dy(b, i) * dy(b,i);
 	return loss;
 }
 
-const tensor& model::forward_backwards(const tensor& x, const tensor& t)
+const tensor& model::forward_backwards(const tensor& _x, const tensor& _t)
 {
+	tensor x = _x.reshape(input_shape());
+	tensor t = _t.reshape(output_shape());
+	
 	//forward prop
 	const tensor& y = _forwards(x);
 	tensor dy(output_node()->output_shape());
@@ -152,16 +160,19 @@ const tensor& model::forward_backwards(const tensor& x, const tensor& t)
 	return _backwards(dy);
 }
 
-void model::train_from_gradient(const tensor& dy)
+void model::train_from_gradient(const tensor& _dy)
 {
+	tensor dy = _dy.reshape(output_shape());
+
 	//backward prop
 	_backwards(dy);
 	//optimize
 	_update();
 }
 
-const tensor& model::forward(const tensor& x)
+const tensor& model::forward(const tensor& _x)
 {
+	tensor x = _x.reshape(input_shape());
 	return _forwards(x, false);
 }
 
@@ -170,11 +181,9 @@ const tensor& model::forward(const tensor& x)
 const tensor& model::_forwards(const tensor& x, bool is_training)
 {
 	assert(_compiled);
-	assert(tensor_shape::equals(x.shape(), input_node()->input_shape()));
-
+	
+	auto a = std::cref(x);
 	_activations.clear();
-
-	auto a = std::ref(x);
 	_activations.push_back(a);
 
 	for (auto& node : _nodes)
@@ -217,12 +226,12 @@ void model::_update()
 
 void model::loss_derivative(const tensor& y, const tensor& t, tensor& dy)
 {
-	assert(tensor_shape::equals(dy.shape(), t.shape()));
-	assert(tensor_shape::equals(dy.shape(), y.shape()));
-
-	for (size_t i = 0; i < dy.shape(0); i++)
+	for (size_t b = 0; b < dy.shape(0); b++)
 	{
-		dy(i) = y(i) - t(i);
+		for (size_t i = 0; i < dy.shape(1); i++)
+		{
+			dy(b,i) = y(b,i) - t(b,i);
+		}
 	}
 }
 

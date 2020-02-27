@@ -14,7 +14,7 @@ using namespace cimg_library;
 
 void gan::train(const std::vector<tensor>& data, size_t epochs)
 {
-	tensor z_input(_g.input_size());
+	tensor z_input(_g.input_shape());
 	tensor g_value(28 * 28);
 	tensor y_d_1(1); y_d_1(0) = 0.9f;
 	tensor y_d_0(1); y_d_0(0) = 0;
@@ -75,7 +75,7 @@ void gan::train(const std::vector<tensor>& data, size_t epochs)
 void gan::save_generated_images(size_t id)
 {
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
-	tensor z_test(_g.input_size());
+	tensor z_test(_g.input_shape());
 
 	const size_t scale_factor = 16;
 	const size_t tile_wh = 28 * scale_factor;

@@ -44,7 +44,7 @@ namespace nn
 
 	public:
 
-		model(const tensor_shape& input_shape, size_t max_batch_size, float learning_rate);
+		model(size_t input_size, size_t max_batch_size, float learning_rate);
 		~model();
 
 		model(const model&) = delete;
@@ -53,14 +53,15 @@ namespace nn
 		template<typename node_type, typename = std::enable_if_t<std::is_convertible_v<node_type*, nodes::node*>>, typename ... args_type>
 		void add(args_type&& ... args)
 		{
+			assert(!_compiled);
 			const tensor_shape& shape = _nodes.empty() ? _input_shape : _nodes.back()->output_shape();
 			_nodes.push_back(std::make_unique<node_type>(shape, std::forward<args_type>(args)...));
 		}
 
 		void compile();
 
-		tensor_shape input_size() const;
-		tensor_shape output_size() const;
+		tensor_shape input_shape() const;
+		tensor_shape output_shape() const;
 		
 		void train(
 			const std::vector<tensor>& x_train,

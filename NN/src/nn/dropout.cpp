@@ -25,10 +25,10 @@ const tensor& dropout::forward(const tensor& x)
 
 	if (is_training())
 	{
-		for (size_t i = 0; i < x.memory_size(); i++)
+		for (size_t i = 0; i < x.data_size(); i++)
 		{
-			p(i) = _distribution(rng) ? 0.0f : 1.0f;
-			y.at_index(i) = p(i) * x.at_index(i);
+			p.at_index(i) = _distribution(rng) ? 0.0f : 1.0f;
+			y.at_index(i) = p.at_index(i) * x.at_index(i);
 		}
 	}
 	return x;
@@ -38,9 +38,9 @@ const tensor& dropout::backward(const tensor& x, const tensor& dy)
 {
 	if (is_training())
 	{
-		for (size_t i = 0; i < x.memory_size(); i++)
+		for (size_t i = 0; i < x.data_size(); i++)
 		{
-			y.at_index(i) = p(i) * dy.at_index(i);
+			y.at_index(i) = p.at_index(i) * dy.at_index(i);
 		}
 	}
 	return dy;

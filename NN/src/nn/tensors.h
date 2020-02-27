@@ -51,6 +51,13 @@ namespace nn
 			_shape = _storage.data();
 		}
 
+		tensor_shape(const tensor_shape& rhs)
+		{
+			_length = rhs.length();
+			_shape = (_length > s_capacity) ? new uint[_length] : _storage.data();
+			std::copy(rhs.begin(), rhs.end(), _shape);
+		}
+
 		tensor_shape(std::initializer_list<uint> shape)
 		{
 			_length = shape.size();
@@ -63,13 +70,6 @@ namespace nn
 		{
 			std::initializer_list<uint> i = { (uint)shape... };
 			this->tensor_shape::tensor_shape(i);
-		}
-
-		tensor_shape(const tensor_shape& rhs)
-		{
-			_length = rhs.length();
-			_shape = (_length > s_capacity) ? new uint[_length] : _storage.data();
-			std::copy(rhs.begin(), rhs.end(), _shape);
 		}
 
 		void operator=(const tensor_shape& rhs)
@@ -90,7 +90,7 @@ namespace nn
 		inline iterator end() const { return _shape + _length; }
 		inline uint length() const { return _length; }
 
-		inline uint memory_size() const
+		inline uint data_size() const
 		{
 			return std::accumulate(_shape, _shape + _length, 1, std::multiplies<size_t>());
 		}
@@ -127,21 +127,16 @@ namespace nn
 	*/
 	class tensor
 	{
-		std::vector<scalar> _data;
-		tensor_shape        _shape;     // bounds of data
-		tensor_shape        _strides;   // stride of data (for indexing)
+		std::vector<scalar> _data;    // data
+		tensor_shape        _shape;   // bounds of data
+		tensor_shape        _strides; // stride of data (for indexing)
 
 	public:
 
 		tensor(const tensor&) = delete;
 
-		template<typename ... args_t>
-		tensor(args_t ... shape) :
-			tensor(tensor_shape(shape...))
-		{}
-
 		tensor(const tensor_shape& shape) :
-			_data(shape.memory_size()),
+			_data(shape.data_size()),
 			_shape(shape)
 		{
 			compute_strides();
@@ -151,6 +146,11 @@ namespace nn
 			_data(std::move(rhs._data)),
 			_shape(std::move(rhs._shape)),
 			_strides(std::move(rhs._strides))
+		{}
+
+		template<typename ... args_t>
+		tensor(args_t ... shape) :
+			tensor(tensor_shape(shape...))
 		{}
 
 		// Properties
@@ -164,7 +164,7 @@ namespace nn
 		{
 			assert(_shape.length() == n);
 			std::array<uint, n> indices = { (uint)index... };
-			auto ptr = _data.data();
+			scalar* ptr = data();
 			for (uint i = 0; i < n; i++)
 				ptr += indices[i] * _strides[i];
 			return *ptr;
@@ -174,7 +174,7 @@ namespace nn
 		{
 			assert(_shape.length() == n);
 			std::array<uint, n> indices = { (uint)index... };
-			auto ptr = _data.data();
+			const scalar* ptr = data();
 			for (uint i = 0; i < n; i++)
 				ptr += indices[i] * _strides[i];
 			return *ptr;
@@ -188,11 +188,24 @@ namespace nn
 		// Get element at 1D index
 		inline scalar at_index(uint i) const { return _data[i]; }
 		inline scalar& at_index(uint i) { return _data[i]; }
-		inline size_t memory_size() const { return _data.size(); }
-		inline const scalar* memory() const { return _data.data(); }
-		inline scalar* memory() { return _data.data(); }
+		inline size_t data_size() const { return _data.size(); }
+		inline const scalar* data() const { return _data.data(); }
+		inline scalar* data() { return _data.data(); }
+
+		tensor reshape(const tensor_shape& shape) const
+		{
+			return tensor(*this, shape);
+		}
 
 	private:
+
+		tensor(const tensor& rhs, const tensor_shape& shape) :
+			_data(rhs._data),
+			_shape(shape)
+		{
+			assert(shape.data_size() == data_size());
+			compute_strides();
+		}
 
 		void compute_strides()
 		{

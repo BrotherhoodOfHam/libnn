@@ -53,8 +53,8 @@ bool model::serialize(const std::string& filename)
 		const tensor& w = layer->weights();
 		const tensor& b = layer->biases();
 
-		write<uint>(f, w.memory_size());
-		write<uint>(f, b.memory_size());
+		write<uint>(f, w.data_size());
+		write<uint>(f, b.data_size());
 		write<uint>(f, layer->input_shape().length());
 		for (uint i : layer->input_shape())
 			write<uint>(f, i);
@@ -63,8 +63,8 @@ bool model::serialize(const std::string& filename)
 		for (uint i : layer->output_shape())
 			write<uint>(f, i);
 
-		f.write((const char*)w.memory(), sizeof(scalar) * w.memory_size());
-		f.write((const char*)b.memory(), sizeof(scalar) * b.memory_size());
+		f.write((const char*)w.data(), sizeof(scalar) * w.data_size());
+		f.write((const char*)b.data(), sizeof(scalar) * b.data_size());
 	}
 
 	return true;
@@ -111,14 +111,14 @@ bool model::deserialize(const std::string& filename)
 		const tensor& w = layer->weights();
 		const tensor& b = layer->biases();
 
-		if (w_size != w.memory_size())
+		if (w_size != w.data_size())
 		{
-			std::cout << "weight count does not match: " << w_size << " != " << w.memory_size() << std::endl;
+			std::cout << "weight count does not match: " << w_size << " != " << w.data_size() << std::endl;
 			return false;
 		}
-		if (b_size != b.memory_size())
+		if (b_size != b.data_size())
 		{
-			std::cout << "bias count does not match: " << b_size << " != " << b.memory_size() << std::endl;
+			std::cout << "bias count does not match: " << b_size << " != " << b.data_size() << std::endl;
 			return false;
 		}
 
@@ -152,8 +152,8 @@ bool model::deserialize(const std::string& filename)
 			}
 		}
 
-		f.read((char*)w.memory(), sizeof(scalar) * w.memory_size());
-		f.read((char*)b.memory(), sizeof(scalar) * b.memory_size());
+		f.read((char*)w.data(), sizeof(scalar) * w.data_size());
+		f.read((char*)b.data(), sizeof(scalar) * b.data_size());
 	}
 
 	return true;
