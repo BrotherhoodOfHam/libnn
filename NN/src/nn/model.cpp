@@ -3,7 +3,6 @@
 */
 
 #include <cmath>
-#include <cassert>
 #include <memory>
 #include <iostream>
 #include <random>
@@ -19,15 +18,15 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-static size_t arg_max(const tensor& v)
+static size_t arg_max(const tensor_slice<1>& v)
 {
-	float max = v(0);
+	float max = v[0];
 	size_t i_max = 0;
 	for (size_t i = 0; i < v.shape(0); i++)
 	{
-		if (v(i) > max)
+		if (v[i] > max)
 		{
-			max = v(i);
+			max = v[i];
 			i_max = i;
 		}
 	}
@@ -37,32 +36,32 @@ static size_t arg_max(const tensor& v)
 /*************************************************************************************************************************************/
 
 model::model(size_t input_size, size_t max_batch_size, float learning_rate) :
-	_input_shape(tensor_shape(max_batch_size, input_size)),
+	_input_layout(max_batch_size, input_size),
 	_learning_rate(learning_rate),
 	_compiled(false)
 {}
 
 model::~model() {}
 
-tensor_shape model::input_shape() const { return _nodes.front()->input_shape(); }
-tensor_shape model::output_shape() const { return _nodes.back()->output_shape(); }
-
 void model::compile()
 {
 	_compiled = true;
+	_output_layout = layout<2>(_nodes.back()->output_shape());
 	_activations.reserve(_nodes.size() + 1);
 }
 
 /*************************************************************************************************************************************/
 
 void model::train(
-	const std::vector<tensor>& x_train,
-	const std::vector<tensor>& y_train,
-	const std::vector<tensor>& x_test,
-	const std::vector<tensor>& y_test,
+	const std::vector<buffer>& x_train,
+	const std::vector<buffer>& y_train,
+	const std::vector<buffer>& x_test,
+	const std::vector<buffer>& y_test,
 	size_t epochs
 )
 {
+	assert(_compiled);
+	assert(x_train.size() % _input_layout.shape()[0] == 0);
 	assert(x_train.size() == y_train.size());
 	assert(x_test.size() == y_test.size());
 
@@ -77,40 +76,45 @@ void model::train(
 
 		auto first = std::chrono::system_clock::now();
 		auto last = first;
-		size_t c = 0;
+		size_t i_count = 0;
+		size_t i_iters = 0;
 		float training_loss = 0.0f;
 
-		for (size_t i : indices)
+		for (size_t i_sample : indices)
 		{
 			auto t = std::chrono::system_clock::now();
 			if ((t - last) > std::chrono::seconds(1))
 			{
-				std::cout << "(" << c << "/" << x_train.size() << ") ";
-				std::cout << std::round(1000.0f * (float)c / x_train.size()) / 10 << "%" << "                            \r";
+				std::cout << "(" << i_count << "/" << x_train.size() << ") ";
+				std::cout << std::round(1000.0f * (float)i_count / x_train.size()) / 10 << "% | "
+					      << i_iters << "it/s                            \r";
 				last = t;
+				i_iters = 0;
 			}
 			
 			//training
-			training_loss += train_batch(x_train[i], y_train[i]);
+			training_loss += train_batch(x_train[i_sample], y_train[i_sample]);
 
-			c++;
+			i_count++;
+			i_iters++;
 		}
 
-		std::cout << "(" << c << "/" << x_train.size() << ") 100%";
+		std::cout << "(" << i_count << "/" << x_train.size() << ") 100%";
 		std::cout << std::endl;
 
 		training_loss /= x_train.size();
 		double loss = 0.0;
 		size_t correct = 0;
 
-		for (size_t i = 0; i < x_test.size(); i++)
+		for (size_t i_sample = 0; i_sample < x_test.size(); i_sample++)
 		{
-			tensor prediction = forward(x_test[i]).reshape(tensor_shape(output_shape()[1]));
+			auto prediction = forward(x_test[i_sample]).as_vector();
+			auto target = y_test[i_sample].as_vector();
 
 			for (size_t i = 0; i < prediction.shape(1); i++)
-				loss += std::pow(prediction(i) - y_test[i](i), 2);
+				loss += std::pow(prediction[i] - target[i], 2);
 
-			if (arg_max(prediction) == arg_max(y_test[i]))
+			if (arg_max(prediction) == arg_max(target))
 				correct++;
 		}
 		loss /= (2.0 * x_test.size());
@@ -122,19 +126,16 @@ void model::train(
 }
 
 
-float model::train_batch(const tensor& _x, const tensor& _y)
+float model::train_batch(const buffer& x, const buffer& y)
 {
-	tensor x = _x.reshape(input_shape());
-	tensor y = _y.reshape(output_shape());
-
 	//forward prop
 	const auto& a = _forwards(x);
 
-	tensor dy(output_node()->output_shape());
+	tensor dy(_output_layout);
 
 	//backward prop
-	loss_derivative(a, y, dy);
-	_backwards(dy);
+	loss_derivative(a, y, dy.data());
+	_backwards(dy.data());
 
 	//optimize
 	_update();
@@ -142,43 +143,37 @@ float model::train_batch(const tensor& _x, const tensor& _y)
 	float loss = 0.0f;
 	for (size_t b = 0; b < dy.shape(0); b++)
 		for (size_t i = 0; i < dy.shape(1); i++)
-			loss += dy(b, i) * dy(b,i);
+			loss += dy[b][i] * dy[b][i];
 	return loss;
 }
 
-const tensor& model::forward_backwards(const tensor& _x, const tensor& _t)
+const buffer& model::forward_backwards(const buffer& x, const buffer& t)
 {
-	tensor x = _x.reshape(input_shape());
-	tensor t = _t.reshape(output_shape());
-	
 	//forward prop
-	const tensor& y = _forwards(x);
-	tensor dy(output_node()->output_shape());
+	const buffer& y = _forwards(x);
+	tensor dy(_output_layout);
 
 	//backward prop
-	loss_derivative(y, t, dy);
-	return _backwards(dy);
+	loss_derivative(y, t, dy.data());
+	return _backwards(dy.data());
 }
 
-void model::train_from_gradient(const tensor& _dy)
+void model::train_from_gradient(const buffer& dy)
 {
-	tensor dy = _dy.reshape(output_shape());
-
 	//backward prop
 	_backwards(dy);
 	//optimize
 	_update();
 }
 
-const tensor& model::forward(const tensor& _x)
+const buffer& model::forward(const buffer& x)
 {
-	tensor x = _x.reshape(input_shape());
 	return _forwards(x, false);
 }
 
 /*************************************************************************************************************************************/
 
-const tensor& model::_forwards(const tensor& x, bool is_training)
+const buffer& model::_forwards(const buffer& x, bool is_training)
 {
 	assert(_compiled);
 	
@@ -196,10 +191,10 @@ const tensor& model::_forwards(const tensor& x, bool is_training)
 	return a;
 }
 
-const tensor& model::_backwards(const tensor& dy, bool is_training)
+const buffer& model::_backwards(const buffer& dy, bool is_training)
 {
 	assert(_compiled);
-	assert(tensor_shape::equals(dy.shape(), output_node()->output_shape()));
+	assert(dy.size() == _output_layout.size());
 	//_forwards must be called
 	assert(_activations.size() > 0);
 
@@ -224,15 +219,15 @@ void model::_update()
 		node->update_params(_learning_rate, 1);
 }
 
-void model::loss_derivative(const tensor& y, const tensor& t, tensor& dy)
+void model::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 {
-	for (size_t b = 0; b < dy.shape(0); b++)
-	{
-		for (size_t i = 0; i < dy.shape(1); i++)
-		{
-			dy(b,i) = y(b,i) - t(b,i);
-		}
-	}
+	auto y = _y.as_vector();
+	auto dy = _dy.as_vector();
+	auto t = _t.as_vector();
+
+	for_each(dy.size(), [&](uint i) {
+		dy[i] = y[i] - t[i];
+	});
 }
 
 /*************************************************************************************************************************************/

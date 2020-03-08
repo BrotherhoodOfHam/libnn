@@ -10,40 +10,43 @@ namespace nn
 {
 	namespace nodes
 	{
+		using node_shape = extents;
+		using dynamic_node_shape = std::vector<uint>;
+
 		/*
 			Node representing a single differentiable operation
 		*/
 		class node
 		{
-		private:
-
-			tensor_shape   _input_shape;
-			tensor_shape   _output_shape;
-
 			bool _is_training = false;
 
 		public:
 
+			node() = default;
+			node(const node&) = delete;
+
+			// state
 			bool is_training() const { return _is_training; }
 			void set_state(bool is_training) { _is_training = is_training; }
 
-			node(const tensor_shape& input_shape, const tensor_shape& output_shape) :
-				_input_shape(input_shape), _output_shape(output_shape)
-			{}
-
-			node(const node&) = delete;
-
-			inline const tensor_shape& input_shape() const { return _input_shape; }
-			inline const tensor_shape& output_shape() const { return _output_shape; }
+			// shapes
+			virtual node_shape input_shape() const = 0;
+			virtual node_shape output_shape() const = 0;
 
 			// forward propagate
-			virtual const tensor& forward(const tensor& x) = 0;
+			virtual const buffer& forward(const buffer& x) = 0;
 
 			// back propagate the gradient
-			virtual const tensor& backward(const tensor& x, const tensor& dy) = 0;
+			virtual const buffer& backward(const buffer& x, const buffer& dy) = 0;
 
 			// update parameters
 			virtual void update_params(float k, float r) = 0;
+		};
+
+		class parameterised_node : public node
+		{
+		public:
+
 		};
 	}
 }

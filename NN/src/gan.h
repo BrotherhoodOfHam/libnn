@@ -18,11 +18,11 @@ namespace nn
 		gan(model& g, model& d) :
 			_g(g), _d(d)
 		{
-			assert(tensor_shape::equals(_g.output_shape(), _d.input_shape()));
+			assert(nodes::node_shape::equals(_g.output_shape(), _d.input_shape()));
 			assert(_d.output_shape()[0] == 1);
 		}
 
-		void train(const std::vector<tensor>& data, size_t epochs);
+		void train(const std::vector<buffer>& data, size_t epochs);
 
 	private:
 

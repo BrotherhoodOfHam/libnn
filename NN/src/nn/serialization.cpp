@@ -50,11 +50,11 @@ bool model::serialize(const std::string& filename)
 
 	for (auto layer : layers)
 	{
-		const tensor& w = layer->weights();
-		const tensor& b = layer->biases();
+		const buffer& w = layer->weights();
+		const buffer& b = layer->biases();
 
-		write<uint>(f, w.data_size());
-		write<uint>(f, b.data_size());
+		write<uint>(f, w.size());
+		write<uint>(f, b.size());
 		write<uint>(f, layer->input_shape().length());
 		for (uint i : layer->input_shape())
 			write<uint>(f, i);
@@ -62,9 +62,10 @@ bool model::serialize(const std::string& filename)
 		write<uint>(f, layer->output_shape().length());
 		for (uint i : layer->output_shape())
 			write<uint>(f, i);
+		
 
-		f.write((const char*)w.data(), sizeof(scalar) * w.data_size());
-		f.write((const char*)b.data(), sizeof(scalar) * b.data_size());
+		f.write((const char*)w.ptr(), (std::streamoff)sizeof(scalar) * w.size());
+		f.write((const char*)b.ptr(), (std::streamoff)sizeof(scalar) * b.size());
 	}
 
 	return true;
@@ -108,17 +109,17 @@ bool model::deserialize(const std::string& filename)
 		uint w_size = read<uint>(f);
 		uint b_size = read<uint>(f);
 
-		const tensor& w = layer->weights();
-		const tensor& b = layer->biases();
+		const buffer& w = layer->weights();
+		const buffer& b = layer->biases();
 
-		if (w_size != w.data_size())
+		if (w_size != w.size())
 		{
-			std::cout << "weight count does not match: " << w_size << " != " << w.data_size() << std::endl;
+			std::cout << "weight count does not match: " << w_size << " != " << w.size() << std::endl;
 			return false;
 		}
-		if (b_size != b.data_size())
+		if (b_size != b.size())
 		{
-			std::cout << "bias count does not match: " << b_size << " != " << b.data_size() << std::endl;
+			std::cout << "bias count does not match: " << b_size << " != " << b.size() << std::endl;
 			return false;
 		}
 
@@ -152,8 +153,8 @@ bool model::deserialize(const std::string& filename)
 			}
 		}
 
-		f.read((char*)w.data(), sizeof(scalar) * w.data_size());
-		f.read((char*)b.data(), sizeof(scalar) * b.data_size());
+		f.read((char*)w.ptr(), (std::streamoff)sizeof(scalar) * w.size());
+		f.read((char*)b.ptr(), (std::streamoff)sizeof(scalar) * b.size());
 	}
 
 	return true;

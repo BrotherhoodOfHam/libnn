@@ -17,24 +17,24 @@ using namespace nn;
 
 struct dataset
 {
-	std::vector<tensor> x_train, y_train, x_test, y_test;
+	std::vector<buffer> x_train, y_train, x_test, y_test;
 };
 
-void process_labels(std::vector<tensor>& labels, uint8_t label, uint8_t number_of_classes)
+void process_labels(std::vector<buffer>& labels, uint8_t label, uint8_t number_of_classes)
 {
-	labels.emplace_back(number_of_classes);
-	tensor& _label = labels.back();
-	for (size_t i = 0; i < _label.shape(0); i++)
-		_label(i) = 0.0f;
-	_label(label) = 1.0f;
+	labels.push_back(buffer(number_of_classes));
+	auto _label = labels.back().as_vector();
+	for (size_t i = 0; i < number_of_classes; i++)
+		_label[i] = 0.0f;
+	_label[label] = 1.0f;
 }
 
-void process_images(std::vector<tensor>& data, const std::vector<uint8_t>& image)
+void process_images(std::vector<buffer>& data, const std::vector<uint8_t>& image)
 {
-	data.emplace_back(image.size());
-	tensor& _data = data.back();
-	for (size_t i = 0; i < image.size(); i++)
-		_data(i) = (float)image[i] / 255.0f;
+	data.push_back(buffer(image.size()));
+	auto _data = data.back().as_vector();
+	for (size_t i = 0; i < _data.size(); i++)
+		_data[i] = (float)image[i] / 255.0f;
 }
 
 dataset load_mnist()
@@ -65,15 +65,15 @@ dataset load_mnist()
 
 	std::cout << "Loaded: " << duration_cast<milliseconds>(clock::now() - t).count() << "ms" << std::endl;
 
-	return d;
+	return std::move(d);
 }
 
 /*************************************************************************************************************************************/
 
 int gan_main()
 {
-	const size_t z_size = 10;
-	const size_t img_size = 28 * 28;
+	size_t z_size = 10;
+	size_t img_size = 28 * 28;
 
 	model g(z_size, 1, 0.01f);
 	g.add<dense_layer>(256);
@@ -106,17 +106,17 @@ int gan_main()
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
 
 	const size_t dataset_size = dataset.training_images.size();
-	std::vector<tensor> data;
-	data.reserve(dataset.training_images.size());
+	std::vector<buffer> data;
+	data.reserve(dataset_size);
 	
 	for (size_t d = 0; d < dataset_size; d++)
 	{
-		data.emplace_back(img_size);
+		buffer& dta = data.emplace_back(img_size);
 		//(0,255) -> (-1,1)
 		const auto& img = dataset.training_images[d];
 		for (size_t i = 0; i < img.size(); i++)
 		{
-			data[d](i) = (((float)img[i] / 255.0f) - 0.5f) * 2;
+			dta.ptr()[i] = (((float)img[i] / 255.0f) - 0.5f) * 2;
 		}
 	}
 
@@ -137,7 +137,7 @@ int main()
 	model classifier(28*28, 1, 0.01f);
 	classifier.add<dense_layer>(100);
 	classifier.add<activation::relu>();
-	classifier.add<dropout>(0.2f);
+	classifier.add<dropout>(0.1f);
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);

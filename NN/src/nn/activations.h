@@ -13,42 +13,51 @@ namespace nn
 		// Base node for activations
 		class activation_node : public nodes::node
 		{
+			nodes::dynamic_node_shape _shape;
+
 		protected:
 
-			tensor y, dx;
+			tensor<1> y, dx;
 
 		public:
 
-
-			activation_node(const tensor_shape& input) :
-				y(input), dx(input),
-				node(input, input)
+			activation_node(nodes::node_shape input_shape) :
+				_shape(input_shape),
+				y(input_shape.total()), dx(y.layout())
 			{}
+
+			nodes::node_shape input_shape() const override { return _shape; }
+			nodes::node_shape output_shape() const override { return _shape; }
 
 			void update_params(float k, float r) override {}
 
 		protected:
 
 			template<class function_type>
-			const tensor& activate(const tensor& x, const function_type& func)
+			const buffer& activate(const buffer& _x, const function_type& func)
 			{
-				for (size_t i = 0; i < x.data_size(); i++)
-				{
+				auto x = _x.as_vector();
+				
+				for_each(x.size(), [&](uint i) {
 					//y = f(x, [y])
-					y.at_index(i) = func(x.at_index(i), y.at_index(i));
-				}
-				return y;
+					y[i] = func(x[i], y[i]);
+				});
+
+				return y.data();
 			}
 
 			template<class function_type>
-			const tensor& derivative(const tensor& x, const tensor& dy, const function_type& func)
+			const buffer& derivative(const buffer& _x, const buffer& _dy, const function_type& func)
 			{
-				for (size_t i = 0; i < x.data_size(); i++)
-				{
+				auto x = _x.as_vector();
+				auto dy = _dy.as_vector();
+
+				for_each(x.size(), [&](uint i) {
 					//dx = f'(x, y, dy, [dx])
-					dx.at_index(i) = func(x.at_index(i), y.at_index(i), dy.at_index(i), dx.at_index(i));
-				}
-				return dx;
+					dx[i] = func(x[i], y[i], dy[i], dx[i]);
+				});
+
+				return dx.data();
 			}
 		};
 
@@ -60,8 +69,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 
 		// Sigmoid function:
@@ -72,8 +81,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 
 		// TanH function:
@@ -84,8 +93,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 
 		// Rectified Linear Unit function:
@@ -96,8 +105,8 @@ namespace nn
 
 			using activation_node::activation_node;
 
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 
 		// Leaky Rectified Linear Unit function:
@@ -108,13 +117,13 @@ namespace nn
 
 		public:
 
-			leaky_relu(const tensor_shape& input_shape, float leakiness) :
+			leaky_relu(nodes::node_shape& input_shape, float leakiness) :
 				activation_node(input_shape),
 				_leakiness(leakiness)
 			{}
 
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 
 		// Softmax function:
@@ -125,8 +134,8 @@ namespace nn
 
 			using activation_node::activation_node;
 			
-			const tensor& forward(const tensor& x) override;
-			const tensor& backward(const tensor& x, const tensor& dy) override;
+			const buffer& forward(const buffer& x) override;
+			const buffer& backward(const buffer& x, const buffer& dy) override;
 		};
 	}
 }

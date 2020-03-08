@@ -10,20 +10,23 @@
 
 namespace nn
 {
-	class dropout : public nodes::node
+	class dropout final : public nodes::node
 	{
 		float _probability;
-		std::bernoulli_distribution _distribution;
-		tensor y, dx;
-		tensor p;
+		tensor<1> y, dx;
+		tensor<1> p;
+
+		nodes::dynamic_node_shape _shape;
 
 	public:
 
-		dropout(const tensor_shape& input_shape, float probability);
+		dropout(nodes::node_shape input_shape, float probability);
 
-		const tensor& forward(const tensor& x) override;
+		nodes::node_shape input_shape() const override { return _shape; }
+		nodes::node_shape output_shape() const override { return _shape; }
 
-		const tensor& backward(const tensor& x, const tensor& dy) override;
+		const buffer& forward(const buffer& x) override;
+		const buffer& backward(const buffer& x, const buffer& dy) override;
 
 		void update_params(float k, float r) override {}
 	};

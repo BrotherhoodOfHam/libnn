@@ -8,25 +8,25 @@
 
 namespace nn
 {
-	class dense_layer : public nodes::node
+	class dense_layer final : public nodes::node
 	{
-		tensor w, dw;
-		tensor b, db;
-		tensor y, dx;
-
-		void zero_gradients();
+		tensor<2> w, dw;
+		tensor<1> b, db;
+		tensor<2> y, dx;
 
 	public:
 
-		dense_layer(const tensor_shape& input_shape, size_t layer_size);
+		dense_layer(nodes::node_shape input_shape, size_t layer_size);
 
-		const tensor& forward(const tensor& x) override;
+		extents input_shape() const override { return dx.shape(); }
+		extents output_shape() const override { return y.shape(); }
 
-		const tensor& backward(const tensor& x, const tensor& dy) override;
+		const buffer& forward(const buffer& x) override;
+		const buffer& backward(const buffer& x, const buffer& dy) override;
 
 		void update_params(float k, float r) override;
 
-		const tensor& weights() const { return w; }
-		const tensor& biases() const { return b; }
+		const buffer& weights() const { return w.data(); }
+		const buffer& biases() const { return b.data(); }
 	};
 }

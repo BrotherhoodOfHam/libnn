@@ -9,41 +9,48 @@ using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-dropout::dropout(const tensor_shape& input_shape, float probability) :
-	y(input_shape),
-	dx(input_shape),
-	p(input_shape),
+dropout::dropout(nodes::node_shape input_shape, float probability) :
+	y(input_shape.total()),
+	dx(input_shape.total()),
+	p(input_shape.total()),
 	_probability(probability),
-	_distribution(probability),
-	node(input_shape, input_shape)
-{
-}
+	_shape(input_shape)
+{}
 
-const tensor& dropout::forward(const tensor& x)
-{
-	std::default_random_engine rng;
-
-	if (is_training())
-	{
-		for (size_t i = 0; i < x.data_size(); i++)
-		{
-			p.at_index(i) = _distribution(rng) ? 0.0f : 1.0f;
-			y.at_index(i) = p.at_index(i) * x.at_index(i);
-		}
-	}
-	return x;
-}
-
-const tensor& dropout::backward(const tensor& x, const tensor& dy)
+const buffer& dropout::forward(const buffer& _x)
 {
 	if (is_training())
 	{
-		for (size_t i = 0; i < x.data_size(); i++)
-		{
-			y.at_index(i) = p.at_index(i) * dy.at_index(i);
-		}
+		auto x = _x.as_tensor(y.layout());
+
+		std::default_random_engine rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+
+		for_each(y.layout(), [&](uint i) {
+			std::bernoulli_distribution dist(_probability);
+			p[i] = dist(rng) ? 0.0f : 1.0f;
+			y[i] = p[i] * x[i];
+		});
+
+		return y.data();
 	}
-	return dy;
+
+	return _x;
+}
+
+const buffer& dropout::backward(const buffer& x, const buffer& _dy)
+{
+	if (is_training())
+	{
+		auto dy = _dy.as_tensor(y.layout());
+
+		for_each(y.layout(), [&](uint i) {
+			dx[i] = p[i] * dy[i];
+		});
+
+		return dx.data();
+	}
+
+	return _dy;
 }
 
 /*************************************************************************************************************************************/

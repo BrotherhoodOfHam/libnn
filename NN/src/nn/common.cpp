@@ -5,7 +5,7 @@
 
 /*************************************************************************************************************************************/
 
-std::ostream& time_stamp(std::ostream& out)
+std::ostream& nn::time_stamp(std::ostream& out)
 {
 	using namespace std;
 	using namespace std::chrono;

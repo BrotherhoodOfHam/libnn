@@ -9,216 +9,354 @@
 
 #include "common.h"
 
-/*************************************************************************************************************************************/
+
 
 namespace nn
 {
-	enum tensor_format
+	/*************************************************************************************************************************************/
+
+	template<uint dims>
+	class layout;
+
+	template<uint dims>
+	class tensor_slice;
+
+	class vector_slice;
+
+	using scalar = float;
+
+	class buffer
 	{
-		NW    = 2,
-		NCW   = 3,
-		NCHW  = 4,
+		std::unique_ptr<scalar[]> _data;
+		size_t                    _size = 0;
+
+	public:
+
+		buffer() = default;
+		buffer(buffer && rhs) = default;
+
+		buffer(size_t size) :
+			_size(size),
+			_data(new scalar[size])
+		{}
+
+		scalar* ptr() const { return _data.get(); }
+		size_t size() const { return _size; }
+		bool is_empty() const { return _size == 0; }
+
+		template<uint dims>
+		tensor_slice<dims> as_tensor(const layout<dims>&) const;
+		vector_slice as_vector() const;
 	};
 
-	typedef float scalar;
-
-	/*
-		Tensor shape is a tuple of integer values storing the extent of each dimension
-	*/
-	class tensor_shape
+	class extents
 	{
-	private:
-
-		static constexpr size_t s_capacity = 4;
-
-		uint* _shape;
-		uint _length;
-		std::array<uint, s_capacity> _storage;
+		const uint* _begin;
+		const uint* _end;
 
 	public:
 
 		using value_type = uint;
-		using reference = const uint&;
-		using const_reference = const uint&;
+		using reference = uint;
+		using const_reference = uint;
 		using size_type = uint;
 
 		using iterator = const uint*;
 		using const_iterator = const uint*;
 
-		tensor_shape()
+		extents(const std::vector<uint>& shape) :
+			extents(&shape[0], &shape[0] + shape.size())
+		{}
+
+		template<size_t dims>
+		extents(const std::array<uint, dims>& shape) :
+			extents(&shape[0], &shape[0] + shape.size())
+		{}
+
+		extents(std::initializer_list<uint> shape) :
+			extents(shape.begin(), shape.end())
+		{}
+
+		extents(const uint* begin, const uint* end) :
+			_begin(begin), _end(end)
+		{}
+
+		uint at(size_t i) const
 		{
-			_length = 0;
-			_shape = _storage.data();
+			assert((_begin + i) < _end);
+			return _begin[i];
 		}
 
-		tensor_shape(const tensor_shape& rhs)
+		size_t length() const { return _end - _begin; }
+
+		iterator begin() const { return _begin; }
+		iterator end() const { return _end; }
+
+		uint operator[](size_t i) const { return at(i); }
+
+		operator std::vector<uint>() { return std::vector<uint>(begin(), end()); }
+
+		uint total() const
 		{
-			_length = rhs.length();
-			_shape = (_length > s_capacity) ? new uint[_length] : _storage.data();
-			std::copy(rhs.begin(), rhs.end(), _shape);
+			uint n = 1;
+			for (uint i : *this)
+				n *= i;
+			return n;
 		}
 
-		tensor_shape(std::initializer_list<uint> shape)
+		static bool equals(const extents& lhs, const extents& rhs)
 		{
-			_length = shape.size();
-			_shape = (_length > s_capacity) ? new uint[_length] : _storage.data();
-			std::copy(shape.begin(), shape.end(), _shape);
-		}
-
-		template<class ... args_type>
-		tensor_shape(args_type ... shape)
-		{
-			std::initializer_list<uint> i = { (uint)shape... };
-			this->tensor_shape::tensor_shape(i);
-		}
-
-		void operator=(const tensor_shape& rhs)
-		{
-			if (_length > s_capacity) delete _shape;
-			_length = rhs.length();
-			_shape = (_length > s_capacity) ? new uint[_length] : _storage.data();
-			std::copy(rhs.begin(), rhs.end(), _shape);
-		}
-
-		~tensor_shape()
-		{
-			if (_length > s_capacity)
-				delete _shape;
-		}
-
-		inline iterator begin() const { return _shape; }
-		inline iterator end() const { return _shape + _length; }
-		inline uint length() const { return _length; }
-
-		inline uint data_size() const
-		{
-			return std::accumulate(_shape, _shape + _length, 1, std::multiplies<size_t>());
-		}
-
-		inline uint operator[](uint i) const
-		{
-			assert(i < _length);
-			return _shape[i];
-		}
-
-		inline uint& operator[](uint i)
-		{
-			assert(i < _length);
-			return _shape[i];
-		}
-
-		static bool equals(const tensor_shape& lhs, const tensor_shape& rhs)
-		{
-			if (lhs.length() != rhs.length())
-				return false;
-
-			for (uint i = 0; i < lhs.length(); i++)
-			{
-				if (lhs[i] != rhs[i])
-					return false;
-			}
-
-			return true;
+			return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 		}
 	};
 
-	/*
-		N dimensional tensor.
-	*/
-	class tensor
+
+	template<uint dims>
+	class layout
 	{
-		std::vector<scalar> _data;    // data
-		tensor_shape        _shape;   // bounds of data
-		tensor_shape        _strides; // stride of data (for indexing)
+		std::array<uint, dims> _shape;
+		std::array<uint, dims> _strides;
+		size_t _size;
 
 	public:
 
-		tensor(const tensor&) = delete;
+		layout() = default;
 
-		tensor(const tensor_shape& shape) :
-			_data(shape.data_size()),
-			_shape(shape)
+		layout(const extents& shape)
 		{
+			assert(shape.length() == dims);
+			std::copy(shape.begin(), shape.end(), _shape.begin());
 			compute_strides();
 		}
 
-		tensor(tensor&& rhs) noexcept :
-			_data(std::move(rhs._data)),
-			_shape(std::move(rhs._shape)),
-			_strides(std::move(rhs._strides))
+		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
+		layout(args_type&& ... dimension) :
+			layout(extents(std::initializer_list<uint>{ (uint)dimension... }))
 		{}
 
-		template<typename ... args_t>
-		tensor(args_t ... shape) :
-			tensor(tensor_shape(shape...))
-		{}
+		constexpr uint shape(uint i) const { return _shape[i]; }
+		constexpr uint stride(uint i) const { return _strides[i]; }
 
-		// Properties
-		inline const tensor_shape& shape() const { return _shape; }
-		inline const tensor_shape& stride() const { return _strides; }
-		inline uint shape(uint i) const { return _shape[i]; }
+		extents shape() const { return extents(_shape); }
+		extents strides() const { return extents(_strides); }
+		size_t size() const { return _size; }
 
-		// Get element at coordinate in tensor
-		template<class ... args_t, uint n = sizeof...(args_t)>
-		inline scalar& at(args_t ... index)
-		{
-			assert(_shape.length() == n);
-			std::array<uint, n> indices = { (uint)index... };
-			scalar* ptr = data();
-			for (uint i = 0; i < n; i++)
-				ptr += indices[i] * _strides[i];
-			return *ptr;
-		}
-		template<class ... args_t, uint n = sizeof...(args_t)>
-		inline scalar at(args_t ... index) const
-		{
-			assert(_shape.length() == n);
-			std::array<uint, n> indices = { (uint)index... };
-			const scalar* ptr = data();
-			for (uint i = 0; i < n; i++)
-				ptr += indices[i] * _strides[i];
-			return *ptr;
-		}
-
-		template<class ... args_t, uint n = sizeof...(args_t)>
-		inline scalar& operator()(args_t ... index) { return at(index...); }
-		template<class ... args_t, uint n = sizeof...(args_t)>
-		inline scalar operator()(args_t ... index) const { return at(index...); }
-
-		// Get element at 1D index
-		inline scalar at_index(uint i) const { return _data[i]; }
-		inline scalar& at_index(uint i) { return _data[i]; }
-		inline size_t data_size() const { return _data.size(); }
-		inline const scalar* data() const { return _data.data(); }
-		inline scalar* data() { return _data.data(); }
-
-		tensor reshape(const tensor_shape& shape) const
-		{
-			return tensor(*this, shape);
-		}
+		operator extents() const { return shape(); }
 
 	private:
 
-		tensor(const tensor& rhs, const tensor_shape& shape) :
-			_data(rhs._data),
-			_shape(shape)
-		{
-			assert(shape.data_size() == data_size());
-			compute_strides();
-		}
-
 		void compute_strides()
 		{
-			_strides = _shape;
-			for (size_t i = 0; i < _shape.length(); i++)
+			for (size_t i = 0; i < dims; i++)
 			{
 				size_t stride = 1;
-				for (size_t j = _shape.length() - 1; j > i; j--)
+				for (size_t j = dims - 1; j > i; j--)
 					stride *= _shape[j];
 				_strides[i] = stride;
 			}
+			_size = _strides[0] * _shape[0];
 		}
 	};
-}
 
-/*************************************************************************************************************************************/
+
+	template<uint dims>
+	class tensor_slice
+	{
+		static_assert(dims > 0, "tensor dimensionality must be at least 1");
+
+		scalar* _ptr;
+		const uint* _shape;
+		const uint* _strides;
+
+		template<uint m>
+		friend class tensor_slice;
+
+	protected:
+
+		inline tensor_slice(scalar* ptr, const uint* shape, const uint* strides) :
+			_ptr(ptr), _shape(shape), _strides(strides)
+		{}
+
+	public:
+
+		inline tensor_slice(const buffer& buf, const layout<dims>& layout) :
+			_ptr(buf.ptr()),
+			_shape(layout.shape().begin()),
+			_strides(layout.strides().begin())
+		{
+			assert(buf.size() == layout.size());
+		}
+
+		tensor_slice(tensor_slice&& rhs) : tensor_slice((const tensor_slice&)rhs) {}
+		tensor_slice(const tensor_slice&) = default;
+
+		inline constexpr uint shape(uint i) const { return _shape[i]; }
+		inline extents shape() const { return extents(_shape, _shape + dims); }
+
+		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
+		scalar& at(args_type ... index) const
+		{
+			std::initializer_list<uint> indices_list = { (uint)index... };
+			auto indices = indices_list.begin();
+			auto ptr = _ptr;
+			for (uint i = 0; i < dims; i++)
+			{
+				assert(indices[i] < _shape[i]);
+				ptr += indices[i] * _strides[i];
+			}
+			return *ptr;
+		}
+
+		inline std::conditional_t<dims == 1, scalar&, tensor_slice<dims - 1>> operator[](uint i) const
+		{
+			assert(i < _shape[0]);
+			if constexpr (dims == 1)
+			{
+				return _ptr[i];
+			}
+			else
+			{
+				return tensor_slice<dims - 1>(
+					_ptr + (i * _strides[0]),
+					_shape + 1,
+					_strides + 1
+				);
+			}
+		}
+	};
+
+	namespace internal
+	{
+		template<uint dims>
+		struct tensor_details
+		{
+			layout<dims> _layout;
+			buffer       _data;
+
+			tensor_details(const extents& shape) :
+				_layout(shape),
+				_data(_layout.size())
+			{}
+		};
+	}
+
+	template<uint dims>
+	class tensor : private internal::tensor_details<dims>, public tensor_slice<dims>
+	{
+	public:
+
+		tensor(const extents& shape) :
+			tensor::tensor_details(shape),
+			tensor::tensor_slice(this->_data, this->_layout)
+		{}
+
+		tensor(const layout<dims>& l) :
+			tensor(l.shape())
+		{}
+
+		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
+		tensor(args_type ... shape) :
+			tensor(extents(std::initializer_list<uint>{ (uint)shape... }))
+		{}
+
+		tensor(tensor&&) = delete;
+		tensor(const tensor&) = delete;
+
+		const layout<dims>& layout() const { return this->_layout; }
+		const buffer& data() const { return this->_data; }
+		buffer& data() { return this->_data; }
+	};
+
+	template<uint dims>
+	inline tensor_slice<dims> buffer::as_tensor(const layout<dims>& l) const
+	{
+		return tensor_slice<dims>(*this, l);
+	}
+
+
+	class vector_slice : public tensor_slice<1>
+	{
+		static const uint stride = 1;
+
+		uint _size;
+
+	public:
+
+		vector_slice(const buffer& buf) :
+			tensor_slice(buf.ptr(), &_size, &stride),
+			_size(buf.size())
+		{}
+
+		uint size() const { return _size; }
+	};
+
+	inline vector_slice buffer::as_vector() const
+	{
+		return vector_slice(*this);
+	}
+
+	/*************************************************************************************************************************************/
+
+	template<class function_type>
+	inline void for_each(size_t count, const function_type& kernel)
+	{
+		for (size_t i = 0; i < count; i++)
+		{
+			kernel(i);
+		}
+	}
+
+	template<class function_type>
+	inline void for_each(const layout<1>& layout, const function_type& kernel)
+	{
+		for (size_t i = 0; i < layout.size(); i++)
+		{
+			kernel(i);
+		}
+	}
+
+	template<class function_type>
+	inline void for_each(const layout<2>& layout, const function_type& kernel)
+	{
+		for (size_t i = 0; i < layout.size(); i++)
+		{
+			extents s = layout.shape();
+			uint a = (i / layout.stride(0)) % layout.shape(0);
+			uint b = (i / layout.stride(1)) % layout.shape(1);
+			kernel(a, b);
+		}
+	}
+
+	template<class function_type>
+	inline void for_each(const layout<3>& layout, const function_type& kernel)
+	{
+		for (size_t i = 0; i < layout.size(); i++)
+		{
+			uint a = (i / layout.stride(0)) % layout.shape(0);
+			uint b = (i / layout.stride(1)) % layout.shape(1);
+			uint c = (i / layout.stride(2)) % layout.shape(2);
+			kernel(a, b, c);
+		}
+	}
+
+	inline void fill_buffer(const buffer& x, scalar value)
+	{
+		for_each(x.size(), [&](uint i)
+			{
+				x.ptr()[i] = value;
+			});
+	}
+
+	template<class function_type>
+	inline void fill_buffer(const buffer& x, const function_type& f)
+	{
+		for_each(x.size(), [&](uint i)
+			{
+				x.ptr()[i] = f();
+			});
+	}
+
+	inline void zero_buffer(const buffer& x) { fill_buffer(x, 0.0f); }
+
+	/*************************************************************************************************************************************/
+}
