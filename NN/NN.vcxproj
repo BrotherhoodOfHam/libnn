@@ -134,6 +134,7 @@
     <ClCompile Include="src\nn\activations.cpp" />
     <ClCompile Include="src\nn\dense_layer.cpp" />
     <ClCompile Include="src\nn\dropout.cpp" />
+    <ClCompile Include="src\nn\sequence.cpp" />
     <ClCompile Include="src\nn\serialization.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -161,7 +162,8 @@
     <ClInclude Include="src\gan.h" />
     <ClInclude Include="src\nn\dense_layer.h" />
     <ClInclude Include="src\nn\dropout.h" />
-    <ClInclude Include="src\nn\nodes.h" />
+    <ClInclude Include="src\nn\node.h" />
+    <ClInclude Include="src\nn\sequence.h" />
     <ClInclude Include="src\nn\tensors.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

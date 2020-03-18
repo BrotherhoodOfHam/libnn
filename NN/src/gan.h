@@ -18,7 +18,7 @@ namespace nn
 		gan(model& g, model& d) :
 			_g(g), _d(d)
 		{
-			assert(nodes::node_shape::equals(_g.output_shape(), _d.input_shape()));
+			assert(node_shape::equals(_g.output_shape(), _d.input_shape()));
 			assert(_d.output_shape()[0] == 1);
 		}
 

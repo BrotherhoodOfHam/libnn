@@ -14,7 +14,6 @@
 #include "dropout.h"
 
 using namespace nn;
-using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
@@ -38,17 +37,11 @@ static size_t arg_max(const tensor_slice<1>& v)
 model::model(size_t input_size, size_t max_batch_size, float learning_rate) :
 	_input_layout(max_batch_size, input_size),
 	_learning_rate(learning_rate),
-	_compiled(false)
+	sequence(node_shape{ max_batch_size, input_size })
 {}
 
 model::~model() {}
 
-void model::compile()
-{
-	_compiled = true;
-	_output_layout = layout<2>(_nodes.back()->output_shape());
-	_activations.reserve(_nodes.size() + 1);
-}
 
 /*************************************************************************************************************************************/
 
@@ -60,7 +53,6 @@ void model::train(
 	size_t epochs
 )
 {
-	assert(_compiled);
 	assert(x_train.size() % _input_layout.shape()[0] == 0);
 	assert(x_train.size() == y_train.size());
 	assert(x_test.size() == y_test.size());
@@ -129,16 +121,16 @@ void model::train(
 float model::train_batch(const buffer& x, const buffer& y)
 {
 	//forward prop
-	const auto& a = _forwards(x);
+	const auto& a = forward(x);
 
-	tensor dy(_output_layout);
+	auto dy = tensor(layout<2>(output_shape()));
 
 	//backward prop
 	loss_derivative(a, y, dy.data());
-	_backwards(dy.data());
+	backward(dy.data());
 
 	//optimize
-	_update();
+	update_params(_learning_rate, 1);
 
 	float loss = 0.0f;
 	for (size_t b = 0; b < dy.shape(0); b++)
@@ -150,74 +142,23 @@ float model::train_batch(const buffer& x, const buffer& y)
 const buffer& model::forward_backwards(const buffer& x, const buffer& t)
 {
 	//forward prop
-	const buffer& y = _forwards(x);
-	tensor dy(_output_layout);
+	const buffer& y = forward(x);
+	auto dy = tensor(layout<2>(output_shape()));
 
 	//backward prop
 	loss_derivative(y, t, dy.data());
-	return _backwards(dy.data());
+	return backward(dy.data());
 }
 
 void model::train_from_gradient(const buffer& dy)
 {
 	//backward prop
-	_backwards(dy);
+	backward(dy);
 	//optimize
-	_update();
-}
-
-const buffer& model::forward(const buffer& x)
-{
-	return _forwards(x, false);
+	update_params(_learning_rate, 1);
 }
 
 /*************************************************************************************************************************************/
-
-const buffer& model::_forwards(const buffer& x, bool is_training)
-{
-	assert(_compiled);
-	
-	auto a = std::cref(x);
-	_activations.clear();
-	_activations.push_back(a);
-
-	for (auto& node : _nodes)
-	{
-		node->set_state(is_training);
-		a = node->forward(a);
-		_activations.push_back(a);
-	}
-
-	return a;
-}
-
-const buffer& model::_backwards(const buffer& dy, bool is_training)
-{
-	assert(_compiled);
-	assert(dy.size() == _output_layout.size());
-	//_forwards must be called
-	assert(_activations.size() > 0);
-
-	auto d = std::ref(dy);
-
-	for (int i = _nodes.size() - 1; i >= 0; i--)
-	{
-		auto node = _nodes[i].get();
-		node->set_state(is_training);
-		d = node->backward(_activations[i], d);
-	}
-
-	return d;
-}
-
-void model::_update()
-{
-	assert(_compiled);
-
-	//apply optimization
-	for (auto& node : _nodes)
-		node->update_params(_learning_rate, 1);
-}
 
 void model::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 {

@@ -9,8 +9,6 @@
 
 #include "common.h"
 
-
-
 namespace nn
 {
 	/*************************************************************************************************************************************/
@@ -49,50 +47,26 @@ namespace nn
 		vector_slice as_vector() const;
 	};
 
-	class extents
+	class extents : public span<const uint>
 	{
-		const uint* _begin;
-		const uint* _end;
-
 	public:
-
-		using value_type = uint;
-		using reference = uint;
-		using const_reference = uint;
-		using size_type = uint;
-
-		using iterator = const uint*;
-		using const_iterator = const uint*;
-
+		
 		extents(const std::vector<uint>& shape) :
-			extents(&shape[0], &shape[0] + shape.size())
+			span(&shape[0], &shape[0] + shape.size())
 		{}
 
 		template<size_t dims>
 		extents(const std::array<uint, dims>& shape) :
-			extents(&shape[0], &shape[0] + shape.size())
+			span(&shape[0], &shape[0] + shape.size())
 		{}
 
 		extents(std::initializer_list<uint> shape) :
-			extents(shape.begin(), shape.end())
+			span(shape.begin(), shape.end())
 		{}
 
 		extents(const uint* begin, const uint* end) :
-			_begin(begin), _end(end)
+			span(begin, end)
 		{}
-
-		uint at(size_t i) const
-		{
-			assert((_begin + i) < _end);
-			return _begin[i];
-		}
-
-		size_t length() const { return _end - _begin; }
-
-		iterator begin() const { return _begin; }
-		iterator end() const { return _end; }
-
-		uint operator[](size_t i) const { return at(i); }
 
 		operator std::vector<uint>() { return std::vector<uint>(begin(), end()); }
 

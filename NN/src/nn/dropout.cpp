@@ -5,11 +5,10 @@
 #include "dropout.h"
 
 using namespace nn;
-using namespace nn::nodes;
 
 /*************************************************************************************************************************************/
 
-dropout::dropout(nodes::node_shape input_shape, float probability) :
+dropout::dropout(node_shape input_shape, float probability) :
 	y(input_shape.total()),
 	dx(input_shape.total()),
 	p(input_shape.total()),

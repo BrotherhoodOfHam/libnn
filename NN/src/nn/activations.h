@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "nodes.h"
+#include "node.h"
 
 namespace nn
 {
 	namespace activation
 	{
 		// Base node for activations
-		class activation_node : public nodes::node
+		class activation_node : public node
 		{
-			nodes::dynamic_node_shape _shape;
+			dynamic_node_shape _shape;
 
 		protected:
 
@@ -21,13 +21,13 @@ namespace nn
 
 		public:
 
-			activation_node(nodes::node_shape input_shape) :
+			activation_node(node_shape input_shape) :
 				_shape(input_shape),
 				y(input_shape.total()), dx(y.layout())
 			{}
 
-			nodes::node_shape input_shape() const override { return _shape; }
-			nodes::node_shape output_shape() const override { return _shape; }
+			node_shape input_shape() const override { return _shape; }
+			node_shape output_shape() const override { return _shape; }
 
 			void update_params(float k, float r) override {}
 
@@ -117,7 +117,7 @@ namespace nn
 
 		public:
 
-			leaky_relu(nodes::node_shape& input_shape, float leakiness) :
+			leaky_relu(node_shape& input_shape, float leakiness) :
 				activation_node(input_shape),
 				_leakiness(leakiness)
 			{}

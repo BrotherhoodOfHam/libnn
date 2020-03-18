@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "nodes.h"
+#include "node.h"
 
 namespace nn
 {
-	class dense_layer final : public nodes::node
+	class dense_layer final : public node
 	{
 		tensor<2> w, dw;
 		tensor<1> b, db;
@@ -16,7 +16,7 @@ namespace nn
 
 	public:
 
-		dense_layer(nodes::node_shape input_shape, size_t layer_size);
+		dense_layer(node_shape input_shape, size_t layer_size);
 
 		extents input_shape() const override { return dx.shape(); }
 		extents output_shape() const override { return y.shape(); }

@@ -84,7 +84,6 @@ int gan_main()
 	g.add<activation::leaky_relu>(0.1f);
 	g.add<dense_layer>(img_size);
 	g.add<activation::tanh>();
-	g.compile();
 
 	model d(img_size, 1, 0.01f);
 	d.add<dense_layer>(1024);
@@ -98,7 +97,6 @@ int gan_main()
 	d.add<dropout>(0.3f);
 	d.add<dense_layer>(1);
 	d.add<activation::sigmoid>();
-	d.compile();
 
 	gan gn(g, d);
 
@@ -142,7 +140,6 @@ int main()
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);
 	classifier.add<activation::softmax>();
-	classifier.compile();
 
 	classifier.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
