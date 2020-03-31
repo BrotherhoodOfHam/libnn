@@ -24,7 +24,7 @@ const buffer& dropout::forward(const buffer& _x)
 
 		std::default_random_engine rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
-		for_each(y.layout(), [&](uint i) {
+		foreach(y.layout(), [&](uint i) {
 			std::bernoulli_distribution dist(_probability);
 			p[i] = dist(rng) ? 0.0f : 1.0f;
 			y[i] = p[i] * x[i];
@@ -42,7 +42,7 @@ const buffer& dropout::backward(const buffer& x, const buffer& _dy)
 	{
 		auto dy = _dy.as_tensor(y.layout());
 
-		for_each(y.layout(), [&](uint i) {
+		foreach(y.layout(), [&](uint i) {
 			dx[i] = p[i] * dy[i];
 		});
 

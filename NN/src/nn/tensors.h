@@ -6,6 +6,8 @@
 
 #include <array>
 #include <numeric>
+#include <algorithm>
+#include <execution>
 
 #include "common.h"
 
@@ -98,7 +100,7 @@ namespace nn
 
 		layout(const extents& shape)
 		{
-			assert(shape.length() == dims);
+			assert(shape.size() == dims);
 			std::copy(shape.begin(), shape.end(), _shape.begin());
 			compute_strides();
 		}
@@ -197,6 +199,8 @@ namespace nn
 				);
 			}
 		}
+
+		friend void update_tensor(const tensor_slice<1>& slice, const std::vector<scalar>& data);
 	};
 
 	namespace internal
@@ -271,66 +275,99 @@ namespace nn
 
 	/*************************************************************************************************************************************/
 
-	template<class function_type>
-	inline void for_each(size_t count, const function_type& kernel)
+	class counting_iterator
 	{
-		for (size_t i = 0; i < count; i++)
-		{
-			kernel(i);
-		}
+	private:
+
+		size_t count;
+
+	public:
+
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = size_t;
+		using difference_type = std::make_signed_t<size_t>;
+		using pointer = size_t;
+		using reference = size_t;
+
+		counting_iterator(size_t c = 0) : count(c) {}
+		counting_iterator(const counting_iterator& other) : count(other.count) {}
+
+		//Arithmetic operations
+		counting_iterator& operator++() { count++; return *this; }
+		counting_iterator operator++(int) { counting_iterator tmp(*this); operator++(); return tmp; }
+
+		size_t operator-(counting_iterator s) const { return (count - s.count); }
+		size_t operator+(counting_iterator s) const { return (count + s.count); }
+		counting_iterator& operator+=(size_t s) { count += s; return *this; }
+		counting_iterator& operator-=(size_t s) { count -= s; return *this; }
+
+		//Relational operations
+		bool operator==(const counting_iterator& rhs) const { return count == rhs.count; }
+		bool operator!=(const counting_iterator& rhs) const { return count != rhs.count; }
+
+		//Accessor
+		size_t operator*() { return count; }
+	};
+
+	template<class function_type>
+	inline void foreach(size_t count, const function_type& kernel)
+	{
+		std::for_each(std::execution::par, counting_iterator(0), counting_iterator(count), kernel);
 	}
 
 	template<class function_type>
-	inline void for_each(const layout<1>& layout, const function_type& kernel)
+	inline void foreach(const layout<1>& layout, const function_type& kernel)
 	{
-		for (size_t i = 0; i < layout.size(); i++)
-		{
-			kernel(i);
-		}
+		foreach(layout.size(), kernel);
 	}
 
 	template<class function_type>
-	inline void for_each(const layout<2>& layout, const function_type& kernel)
+	inline void foreach(const layout<2>& layout, const function_type& kernel)
 	{
-		for (size_t i = 0; i < layout.size(); i++)
-		{
+		foreach(layout.size(), [&](size_t i) {
 			extents s = layout.shape();
 			uint a = (i / layout.stride(0)) % layout.shape(0);
 			uint b = (i / layout.stride(1)) % layout.shape(1);
 			kernel(a, b);
-		}
+		});
 	}
 
 	template<class function_type>
-	inline void for_each(const layout<3>& layout, const function_type& kernel)
+	inline void foreach(const layout<3>& layout, const function_type& kernel)
 	{
-		for (size_t i = 0; i < layout.size(); i++)
-		{
+		foreach(layout.size(), [&](size_t i) {
+			extents s = layout.shape();
 			uint a = (i / layout.stride(0)) % layout.shape(0);
 			uint b = (i / layout.stride(1)) % layout.shape(1);
 			uint c = (i / layout.stride(2)) % layout.shape(2);
 			kernel(a, b, c);
-		}
+		});
 	}
 
 	inline void fill_buffer(const buffer& x, scalar value)
 	{
-		for_each(x.size(), [&](uint i)
-			{
-				x.ptr()[i] = value;
-			});
+		foreach(x.size(), [&](uint i)
+		{
+			x.ptr()[i] = value;
+		});
 	}
 
 	template<class function_type>
 	inline void fill_buffer(const buffer& x, const function_type& f)
 	{
-		for_each(x.size(), [&](uint i)
-			{
-				x.ptr()[i] = f();
-			});
+		foreach(x.size(), [&](uint i)
+		{
+			x.ptr()[i] = f();
+		});
 	}
 
 	inline void zero_buffer(const buffer& x) { fill_buffer(x, 0.0f); }
+
+	inline void update_tensor(const tensor_slice<1>& slice, const std::vector<scalar>& data)
+	{
+		assert(data.size() == slice._shape[0]);
+		std::copy(data.begin(), data.end(), slice._ptr);
+	}
 
 	/*************************************************************************************************************************************/
 }

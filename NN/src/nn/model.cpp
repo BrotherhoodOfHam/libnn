@@ -46,19 +46,27 @@ model::~model() {}
 /*************************************************************************************************************************************/
 
 void model::train(
-	const std::vector<buffer>& x_train,
-	const std::vector<buffer>& y_train,
-	const std::vector<buffer>& x_test,
-	const std::vector<buffer>& y_test,
-	size_t epochs
+	const std::vector<data>&  x_train,
+	const std::vector<label>& y_train,
+	const std::vector<data>&  x_test,
+	const std::vector<label>& y_test,
+	size_t       epochs
 )
 {
-	assert(x_train.size() % _input_layout.shape()[0] == 0);
+	uint batch_size = _input_layout.shape(0);
+
+	assert(x_train.size() % batch_size == 0);
+	assert(x_test.size() % batch_size == 0);
 	assert(x_train.size() == y_train.size());
 	assert(x_test.size() == y_test.size());
 
 	std::vector<size_t> indices(x_train.size());
 	std::iota(indices.begin(), indices.end(), 0);
+
+	tensor<2> input(_input_layout);
+	tensor<2> output(output_shape());
+
+	zero_buffer(output.data());
 
 	for (size_t ep = 0; ep < epochs; ep++)
 	{
@@ -83,9 +91,19 @@ void model::train(
 				last = t;
 				i_iters = 0;
 			}
-			
-			//training
-			training_loss += train_batch(x_train[i_sample], y_train[i_sample]);
+
+			size_t batch_index = i_count % batch_size;
+
+			if ((batch_index == 0) && (i_count > 0))
+			{
+				//training
+				training_loss += train_batch(input.data(), output.data());
+
+				zero_buffer(output.data());
+			}
+
+			update_tensor(input[batch_index], x_train[i_sample]);
+			output[batch_index][y_train[i_sample]] = 1;
 
 			i_count++;
 			i_iters++;
@@ -100,14 +118,26 @@ void model::train(
 
 		for (size_t i_sample = 0; i_sample < x_test.size(); i_sample++)
 		{
-			auto prediction = forward(x_test[i_sample]).as_vector();
-			auto target = y_test[i_sample].as_vector();
+			size_t batch_index = i_sample % batch_size;
 
-			for (size_t i = 0; i < prediction.shape(1); i++)
-				loss += std::pow(prediction[i] - target[i], 2);
+			if ((batch_index == 0) && (i_sample > 0))
+			{
+				auto prediction = forward(input.data()).as_tensor(output.layout());
 
-			if (arg_max(prediction) == arg_max(target))
-				correct++;
+				for (size_t b = 0; b < output.shape(0); b++)
+				{
+					if (arg_max(prediction[b]) == arg_max(output[b]))
+						correct++;
+
+					for (size_t i = 0; i < output.shape(1); i++)
+						loss += std::pow(prediction[b][i] - output[b][i], 2);
+				}
+
+				zero_buffer(output.data());
+			}
+
+			update_tensor(input[batch_index], x_test[i_sample]);
+			output[batch_index][y_test[i_sample]] = 1;
 		}
 		loss /= (2.0 * x_test.size());
 
@@ -116,7 +146,6 @@ void model::train(
 				<< " | accuracy: (" << correct << " / " << x_test.size() << ")" << std::endl;
 	}
 }
-
 
 float model::train_batch(const buffer& x, const buffer& y)
 {
@@ -166,7 +195,7 @@ void model::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 	auto dy = _dy.as_vector();
 	auto t = _t.as_vector();
 
-	for_each(dy.size(), [&](uint i) {
+	foreach(dy.size(), [&](uint i) {
 		dy[i] = y[i] - t[i];
 	});
 }

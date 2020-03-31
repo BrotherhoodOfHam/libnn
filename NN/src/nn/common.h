@@ -35,7 +35,7 @@ namespace nn
 		using iterator = type*;
 		using const_iterator = const type*;
 
-		span(type* begin, const type* end) :
+		span(type* begin, type* end) :
 			_begin(begin), _end(end)
 		{}
 
@@ -51,7 +51,7 @@ namespace nn
 			return _begin[i];
 		}
 
-		size_type length() const { return _end - _begin; }
+		size_type size() const { return _end - _begin; }
 
 		iterator begin() { return _begin; }
 		iterator end() { return _end; }
@@ -59,7 +59,7 @@ namespace nn
 		const_iterator begin() const { return _begin; }
 		const_iterator end() const { return _end; }
 
-		type operator[](size_type i) { return at(i); }
-		type operator[](size_type i) const { return at(i); }
+		reference operator[](size_type i) { return at(i); }
+		const_reference operator[](size_type i) const { return at(i); }
 	};
 }

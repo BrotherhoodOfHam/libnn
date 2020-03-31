@@ -55,11 +55,11 @@ bool model::serialize(const std::string& filename)
 
 		write<uint>(f, w.size());
 		write<uint>(f, b.size());
-		write<uint>(f, layer->input_shape().length());
+		write<uint>(f, layer->input_shape().size());
 		for (uint i : layer->input_shape())
 			write<uint>(f, i);
 
-		write<uint>(f, layer->output_shape().length());
+		write<uint>(f, layer->output_shape().size());
 		for (uint i : layer->output_shape())
 			write<uint>(f, i);
 		
@@ -124,7 +124,7 @@ bool model::deserialize(const std::string& filename)
 		}
 
 		uint in_shape_size = read<uint>(f);
-		if (in_shape_size != in_shape.length())
+		if (in_shape_size != in_shape.size())
 		{
 			std::cout << "shape does not match" << std::endl;
 			return false;
@@ -139,7 +139,7 @@ bool model::deserialize(const std::string& filename)
 		}
 
 		uint out_shape_size = read<uint>(f);
-		if (out_shape_size != out_shape.length())
+		if (out_shape_size != out_shape.size())
 		{
 			std::cout << "shape does not match" << std::endl;
 			return false;

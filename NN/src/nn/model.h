@@ -19,16 +19,19 @@ namespace nn
 
 	public:
 
+		using data = std::vector<scalar>;
+		using label = uint8_t;
+
 		model(size_t input_size, size_t max_batch_size, float learning_rate);
 		~model();
 
 		model(const model&) = delete;
 
 		void train(
-			const std::vector<buffer>& x_train,
-			const std::vector<buffer>& y_train,
-			const std::vector<buffer>& x_test,
-			const std::vector<buffer>& y_test,
+			const std::vector<data>&  x_train,
+			const std::vector<label>& y_train,
+			const std::vector<data>&  x_test,
+			const std::vector<label>& y_test,
 			size_t epochs
 		);
 

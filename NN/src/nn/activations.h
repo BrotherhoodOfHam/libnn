@@ -38,7 +38,7 @@ namespace nn
 			{
 				auto x = _x.as_vector();
 				
-				for_each(x.size(), [&](uint i) {
+				foreach(x.size(), [&](uint i) {
 					//y = f(x, [y])
 					y[i] = func(x[i], y[i]);
 				});
@@ -52,7 +52,7 @@ namespace nn
 				auto x = _x.as_vector();
 				auto dy = _dy.as_vector();
 
-				for_each(x.size(), [&](uint i) {
+				foreach(x.size(), [&](uint i) {
 					//dx = f'(x, y, dy, [dx])
 					dx[i] = func(x[i], y[i], dy[i], dx[i]);
 				});
