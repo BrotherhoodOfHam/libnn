@@ -28,20 +28,20 @@ namespace nn
 	class buffer
 	{
 		std::unique_ptr<scalar[]> _data;
-		size_t                    _size = 0;
+		uint                      _size = 0;
 
 	public:
 
 		buffer() = default;
 		buffer(buffer && rhs) = default;
 
-		buffer(size_t size) :
+		buffer(uint size) :
 			_size(size),
 			_data(new scalar[size])
 		{}
 
 		scalar* ptr() const { return _data.get(); }
-		size_t size() const { return _size; }
+		uint size() const { return _size; }
 		bool is_empty() const { return _size == 0; }
 
 		template<uint dims>
@@ -92,7 +92,7 @@ namespace nn
 	{
 		std::array<uint, dims> _shape;
 		std::array<uint, dims> _strides;
-		size_t _size;
+		uint _size;
 
 	public:
 
@@ -115,7 +115,7 @@ namespace nn
 
 		extents shape() const { return extents(_shape); }
 		extents strides() const { return extents(_strides); }
-		size_t size() const { return _size; }
+		uint size() const { return _size; }
 
 		operator extents() const { return shape(); }
 
@@ -123,10 +123,10 @@ namespace nn
 
 		void compute_strides()
 		{
-			for (size_t i = 0; i < dims; i++)
+			for (uint i = 0; i < dims; i++)
 			{
-				size_t stride = 1;
-				for (size_t j = dims - 1; j > i; j--)
+				uint stride = 1;
+				for (uint j = dims - 1; j > i; j--)
 					stride *= _shape[j];
 				_strides[i] = stride;
 			}
@@ -262,7 +262,7 @@ namespace nn
 
 		vector_slice(const buffer& buf) :
 			tensor_slice(buf.ptr(), &_size, &stride),
-			_size(buf.size())
+			_size((uint)buf.size())
 		{}
 
 		uint size() const { return _size; }
@@ -279,38 +279,38 @@ namespace nn
 	{
 	private:
 
-		size_t count;
+		uint count;
 
 	public:
 
 		using iterator_category = std::random_access_iterator_tag;
-		using value_type = size_t;
-		using difference_type = std::make_signed_t<size_t>;
-		using pointer = size_t;
-		using reference = size_t;
+		using value_type = uint;
+		using difference_type = int;
+		using pointer = uint;
+		using reference = uint;
 
-		counting_iterator(size_t c = 0) : count(c) {}
+		counting_iterator(uint c = 0) : count(c) {}
 		counting_iterator(const counting_iterator& other) : count(other.count) {}
 
 		//Arithmetic operations
 		counting_iterator& operator++() { count++; return *this; }
 		counting_iterator operator++(int) { counting_iterator tmp(*this); operator++(); return tmp; }
 
-		size_t operator-(counting_iterator s) const { return (count - s.count); }
-		size_t operator+(counting_iterator s) const { return (count + s.count); }
-		counting_iterator& operator+=(size_t s) { count += s; return *this; }
-		counting_iterator& operator-=(size_t s) { count -= s; return *this; }
+		uint operator-(counting_iterator s) const { return (count - s.count); }
+		uint operator+(counting_iterator s) const { return (count + s.count); }
+		counting_iterator& operator+=(uint s) { count += s; return *this; }
+		counting_iterator& operator-=(uint s) { count -= s; return *this; }
 
 		//Relational operations
 		bool operator==(const counting_iterator& rhs) const { return count == rhs.count; }
 		bool operator!=(const counting_iterator& rhs) const { return count != rhs.count; }
 
 		//Accessor
-		size_t operator*() { return count; }
+		uint operator*() { return count; }
 	};
 
 	template<class function_type>
-	inline void foreach(size_t count, const function_type& kernel)
+	inline void foreach(uint count, const function_type& kernel)
 	{
 		std::for_each(std::execution::par, counting_iterator(0), counting_iterator(count), kernel);
 	}

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "activations.h"
+#include "nn/activations.h"
 
 using namespace nn;
 
@@ -25,7 +25,7 @@ const buffer& activation::linear::backward(const buffer& x, const buffer& dy)
 
 const buffer& activation::sigmoid::forward(const buffer& x)
 {
-	return activate(x, [](scalar x, scalar y) {
+	return activate(x, [](scalar x) {
 		return 1.0f / (1.0f + std::exp(-x));
 	});
 }
@@ -42,7 +42,7 @@ const buffer& activation::sigmoid::backward(const buffer& x, const buffer& dy)
 
 const buffer& activation::tanh::forward(const buffer& x)
 {
-	return activate(x, [](scalar x, scalar y) {
+	return activate(x, [](scalar x) {
 		scalar a = std::exp(x);
 		scalar b = 1.0f / a;
 		return (a - b) / (a + b);
@@ -61,7 +61,7 @@ const buffer& activation::tanh::backward(const buffer& x, const buffer& dy)
 
 const buffer& activation::relu::forward(const buffer& x)
 {
-	return activate(x, [](scalar x, scalar y) {
+	return activate(x, [](scalar x) {
 		return std::max(x, 0.0f);
 	});
 }
@@ -77,7 +77,7 @@ const buffer& activation::relu::backward(const buffer& x, const buffer& dy)
 
 const buffer& activation::leaky_relu::forward(const buffer& x)
 {
-	return activate(x, [=](scalar x, scalar y) {
+	return activate(x, [=](scalar x) {
 		return (x > 0) ? x : _leakiness * x;
 	});
 }
@@ -91,18 +91,24 @@ const buffer& activation::leaky_relu::backward(const buffer& x, const buffer& dy
 
 /*************************************************************************************************************************************/
 
-const buffer& activation::softmax::forward(const buffer& x)
+const buffer& activation::softmax::forward(const buffer& _x)
 {
-	scalar sum = 0.0f;
+	auto x = _x.as_vector();
 
-	activate(x, [&sum](scalar x, scalar y) {
-		scalar a = std::exp(x);
+	scalar sum = 0.0f;
+	for (uint i = 0; i < x.size(); i++)
+	{
+		scalar a = std::exp(x[i]);
 		sum += a;
-		return a;
-	});
-	return activate(x, [&sum](scalar x, scalar y) {
-		return y / sum;
-	});
+		y[i] = a;
+	}
+
+	for (uint i = 0; i < x.size(); i++)
+	{
+		y[i] /= sum;
+	}
+
+	return y.data();
 }
 
 const buffer& activation::softmax::backward(const buffer& x, const buffer& dy)

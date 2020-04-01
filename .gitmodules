@@ -2,8 +2,8 @@
 	path = MNIST-Loader
 	url = https://github.com/krck/MNIST-Loader.git
 [submodule "mnist"]
-	path = mnist
+	path = deps/mnist
 	url = https://github.com/wichtounet/mnist.git
 [submodule "CImg"]
-	path = CImg
+	path = deps/CImg
 	url = https://github.com/dtschump/CImg.git

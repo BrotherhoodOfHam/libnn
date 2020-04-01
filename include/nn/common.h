@@ -19,6 +19,11 @@ namespace nn
 	// print the time
 	std::ostream& time_stamp(std::ostream& out);
 
+	inline std::default_random_engine new_random_engine()
+	{
+		return std::default_random_engine(std::random_device()());
+	}
+
 	template<typename type>
 	class span
 	{

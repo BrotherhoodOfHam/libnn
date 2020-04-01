@@ -12,7 +12,7 @@ using namespace cimg_library;
 
 /*************************************************************************************************************************************/
 
-void gan::train(const std::vector<buffer>& data, size_t epochs)
+void gan::train(const std::vector<buffer>& data, uint epochs)
 {
 	tensor<1> z_input(_g.input_shape());
 	tensor<1> g_value(28 * 28);
@@ -26,15 +26,15 @@ void gan::train(const std::vector<buffer>& data, size_t epochs)
 
 	std::uniform_real_distribution<double> unif(-1, 1);
 
-	for (size_t e = 0; e < epochs; e++)
+	for (uint e = 0; e < epochs; e++)
 	{
-		std::default_random_engine rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+		auto rng = new_random_engine();
 
 		std::cout << time_stamp << " epoch: " << e << std::endl;
 
 		auto first = std::chrono::system_clock::now();
 		auto last = first;
-		size_t c = 0;
+		uint c = 0;
 
 		for (const auto& x_data : data)
 		{
@@ -48,14 +48,14 @@ void gan::train(const std::vector<buffer>& data, size_t epochs)
 			c++;
 
 			//randomize z
-			for (size_t i_z = 0; i_z < z_input.shape(0); i_z++)
+			for (uint i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input[i_z] = (scalar)unif(rng);
 
 			_d.train_batch(x_data, y_d_1.data());
 			_d.train_batch(_g.forward(z_input.data()), y_d_0.data());
 
 			//randomize z
-			for (size_t i_z = 0; i_z < z_input.shape(0); i_z++)
+			for (uint i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input[i_z] = (scalar)unif(rng);
 
 			const auto& dy = _d.forward_backwards(_g.forward(z_input.data()), y_g.data());
@@ -72,40 +72,40 @@ void gan::train(const std::vector<buffer>& data, size_t epochs)
 
 /*************************************************************************************************************************************/
 
-void gan::save_generated_images(size_t id)
+void gan::save_generated_images(uint id)
 {
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
 	tensor<1> z_test(_g.input_shape());
 
-	const size_t scale_factor = 16;
-	const size_t tile_wh = 28 * scale_factor;
-	const size_t border_sz = 24;
-	const size_t tile_count = 5;
-	const size_t total_wh = (tile_wh * tile_count) + (border_sz * (tile_count + 1));
+	const uint scale_factor = 16;
+	const uint tile_wh = 28 * scale_factor;
+	const uint border_sz = 24;
+	const uint tile_count = 5;
+	const uint total_wh = (tile_wh * tile_count) + (border_sz * (tile_count + 1));
 
 	CImg<float> image(total_wh, total_wh);
 
-	for (size_t y_tile = 0; y_tile < tile_count; y_tile++)
+	for (uint y_tile = 0; y_tile < tile_count; y_tile++)
 	{
-		for (size_t x_tile = 0; x_tile < tile_count; x_tile++)
+		for (uint x_tile = 0; x_tile < tile_count; x_tile++)
 		{
-			for (size_t i_z = 0; i_z < z_test.shape(0); i_z++)
+			for (uint i_z = 0; i_z < z_test.shape(0); i_z++)
 				z_test[i_z] = 2 * ((float)(y_tile * tile_count + x_tile) / (tile_count * tile_count)) - 1;
 
 			auto g = _g.forward(z_test.data()).as_vector();
 
-			const size_t x = (x_tile * tile_wh) + ((x_tile + 1) * border_sz);
-			const size_t y = (y_tile * tile_wh) + ((y_tile + 1) * border_sz);
+			const uint x = (x_tile * tile_wh) + ((x_tile + 1) * border_sz);
+			const uint y = (y_tile * tile_wh) + ((y_tile + 1) * border_sz);
 
-			for (size_t i_g = 0; i_g < g.shape(0); i_g++)
+			for (uint i_g = 0; i_g < g.shape(0); i_g++)
 			{
-				const size_t w = i_g % 28;
-				const size_t h = i_g / 28;
+				const uint w = i_g % 28;
+				const uint h = i_g / 28;
 
-				for (size_t i_sub = 0; i_sub < (scale_factor * scale_factor); i_sub++)
+				for (uint i_sub = 0; i_sub < (scale_factor * scale_factor); i_sub++)
 				{
-					const size_t sub_w = i_sub % scale_factor;
-					const size_t sub_h = i_sub / scale_factor;
+					const uint sub_w = i_sub % scale_factor;
+					const uint sub_h = i_sub / scale_factor;
 
 					image(
 						x + (w * scale_factor) + sub_w,

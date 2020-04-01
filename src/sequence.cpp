@@ -1,5 +1,5 @@
 
-#include "sequence.h"
+#include "nn/sequence.h"
 
 using namespace nn;
 
@@ -23,7 +23,7 @@ const buffer& sequence::backward(const buffer& x, const buffer& dy)
 {
 	auto d = std::ref(dy);
 
-	for (int i = _nodes.size() - 1; i >= 0; i--)
+	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
 	{
 		auto node = _nodes[i].get();
 		node->set_state(is_training());

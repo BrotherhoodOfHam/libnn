@@ -4,8 +4,8 @@
 
 #include <fstream>
 
-#include "model.h"
-#include "dense_layer.h"
+#include "nn/model.h"
+#include "nn/dense_layer.h"
 
 using namespace nn;
 
@@ -29,6 +29,7 @@ type read(std::istream& in)
 
 /*************************************************************************************************************************************/
 
+
 bool model::serialize(const std::string& filename)
 {
 	std::fstream f(filename, std::ios::binary | std::ios::out);
@@ -46,7 +47,7 @@ bool model::serialize(const std::string& filename)
 	}
 
 	write(f, s_magic);
-	write<uint>(f, layers.size());
+	write<uint>(f, (uint)layers.size());
 
 	for (auto layer : layers)
 	{
@@ -55,11 +56,11 @@ bool model::serialize(const std::string& filename)
 
 		write<uint>(f, w.size());
 		write<uint>(f, b.size());
-		write<uint>(f, layer->input_shape().size());
+		write<uint>(f, (uint)layer->input_shape().size());
 		for (uint i : layer->input_shape())
 			write<uint>(f, i);
 
-		write<uint>(f, layer->output_shape().size());
+		write<uint>(f, (uint)layer->output_shape().size());
 		for (uint i : layer->output_shape())
 			write<uint>(f, i);
 		

@@ -63,8 +63,8 @@ dataset load_mnist()
 
 int gan_main()
 {
-	size_t z_size = 10;
-	size_t img_size = 28 * 28;
+	uint z_size = 10;
+	uint img_size = 28 * 28;
 
 	model g(z_size, 1, 0.01f);
 	g.add<dense_layer>(256);
@@ -130,7 +130,7 @@ int main()
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);
-	classifier.add<activation::softmax>();
+	classifier.add<activation::sigmoid>();
 
 	classifier.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,

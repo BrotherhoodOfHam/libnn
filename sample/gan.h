@@ -22,10 +22,10 @@ namespace nn
 			assert(_d.output_shape()[0] == 1);
 		}
 
-		void train(const std::vector<buffer>& data, size_t epochs);
+		void train(const std::vector<buffer>& data, uint epochs);
 
 	private:
 
-		void save_generated_images(size_t id);
+		void save_generated_images(uint id);
 	};
 }

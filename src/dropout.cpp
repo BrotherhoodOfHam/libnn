@@ -2,7 +2,7 @@
 	Dropout regularization node
 */
 
-#include "dropout.h"
+#include "nn/dropout.h"
 
 using namespace nn;
 
@@ -22,7 +22,7 @@ const buffer& dropout::forward(const buffer& _x)
 	{
 		auto x = _x.as_tensor(y.layout());
 
-		std::default_random_engine rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+		auto rng = new_random_engine();
 
 		foreach(y.layout(), [&](uint i) {
 			std::bernoulli_distribution dist(_probability);

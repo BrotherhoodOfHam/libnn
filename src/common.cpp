@@ -1,4 +1,4 @@
-#include "common.h"
+#include "nn/common.h"
 
 #include <chrono>
 #include <iomanip>

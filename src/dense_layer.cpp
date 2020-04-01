@@ -4,7 +4,7 @@
 
 #include <random>
 
-#include "dense_layer.h"
+#include "nn/dense_layer.h"
 
 using namespace nn;
 
@@ -21,11 +21,11 @@ dense_layer::dense_layer(node_shape input_shape, size_t layer_size) :
 	std::normal_distribution<float> dist(0, 1);
 	const float sqrtn = std::sqrt((float)input_shape[1]);
 
-	for (size_t j = 0; j < w.shape(0); j++)
-		for (size_t i = 0; i < w.shape(1); i++)
+	for (uint j = 0; j < w.shape(0); j++)
+		for (uint i = 0; i < w.shape(1); i++)
 			w[j][i] = dist(gen) / sqrtn;
 
-	for (size_t i = 0; i < b.shape(0); i++)
+	for (uint i = 0; i < b.shape(0); i++)
 		b[i] = 0.0f;
 }
 
@@ -38,7 +38,7 @@ const buffer& dense_layer::forward(const buffer& _x)
 	foreach(y.layout(), [&](uint b, uint j) {
 		//z = w.x + b
 		scalar z = 0.0f;
-		for (size_t i = 0; i < w.shape(1); i++)
+		for (uint i = 0; i < w.shape(1); i++)
 			z += x[b][i] * w[j][i];
 		z += x[b][j];
 		y[b][j] = z;
@@ -79,7 +79,7 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	foreach(dx.layout(), [&](uint b, uint i) {
 		// δx = w^T * δy
 		scalar sum = 0;
-		for (size_t j = 0; j < w.shape(0); j++)
+		for (uint j = 0; j < w.shape(0); j++)
 			sum += w[j][i] * dy[b][j];
 		dx[b][i] = sum;
 	});

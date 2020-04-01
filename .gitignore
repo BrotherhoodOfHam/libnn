@@ -1,8 +1,6 @@
-
 *.suo
 *.user
-.vs
-Debug/
-Release/
 *.bmp
-mnist/
+.vs
+.vscode
+build/

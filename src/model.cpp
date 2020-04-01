@@ -8,10 +8,10 @@
 #include <random>
 #include <chrono>
 
-#include "model.h"
-#include "activations.h"
-#include "dense_layer.h"
-#include "dropout.h"
+#include "nn/model.h"
+#include "nn/activations.h"
+#include "nn/dense_layer.h"
+#include "nn/dropout.h"
 
 using namespace nn;
 
@@ -20,8 +20,8 @@ using namespace nn;
 static size_t arg_max(const tensor_slice<1>& v)
 {
 	float max = v[0];
-	size_t i_max = 0;
-	for (size_t i = 0; i < v.shape(0); i++)
+	uint i_max = 0;
+	for (uint i = 0; i < v.shape(0); i++)
 	{
 		if (v[i] > max)
 		{
@@ -34,7 +34,7 @@ static size_t arg_max(const tensor_slice<1>& v)
 
 /*************************************************************************************************************************************/
 
-model::model(size_t input_size, size_t max_batch_size, float learning_rate) :
+model::model(uint input_size, uint max_batch_size, float learning_rate) :
 	_input_layout(max_batch_size, input_size),
 	_learning_rate(learning_rate),
 	sequence(node_shape{ max_batch_size, input_size })
@@ -72,12 +72,13 @@ void model::train(
 	{
 		std::cout << time_stamp << " epoch " << ep << ":" << std::endl;
 
-		std::shuffle(indices.begin(), indices.end(), std::default_random_engine(ep));
+		auto rng = new_random_engine();
+		std::shuffle(indices.begin(), indices.end(), rng);
 
 		auto first = std::chrono::system_clock::now();
 		auto last = first;
-		size_t i_count = 0;
-		size_t i_iters = 0;
+		uint i_count = 0;
+		uint i_iters = 0;
 		float training_loss = 0.0f;
 
 		for (size_t i_sample : indices)
@@ -92,7 +93,7 @@ void model::train(
 				i_iters = 0;
 			}
 
-			size_t batch_index = i_count % batch_size;
+			uint batch_index = i_count % batch_size;
 
 			if ((batch_index == 0) && (i_count > 0))
 			{
@@ -114,22 +115,22 @@ void model::train(
 
 		training_loss /= x_train.size();
 		double loss = 0.0;
-		size_t correct = 0;
+		uint correct = 0;
 
-		for (size_t i_sample = 0; i_sample < x_test.size(); i_sample++)
+		for (uint i_sample = 0; i_sample < x_test.size(); i_sample++)
 		{
-			size_t batch_index = i_sample % batch_size;
+			uint batch_index = i_sample % batch_size;
 
 			if ((batch_index == 0) && (i_sample > 0))
 			{
 				auto prediction = forward(input.data()).as_tensor(output.layout());
 
-				for (size_t b = 0; b < output.shape(0); b++)
+				for (uint b = 0; b < output.shape(0); b++)
 				{
 					if (arg_max(prediction[b]) == arg_max(output[b]))
 						correct++;
 
-					for (size_t i = 0; i < output.shape(1); i++)
+					for (uint i = 0; i < output.shape(1); i++)
 						loss += std::pow(prediction[b][i] - output[b][i], 2);
 				}
 
@@ -162,8 +163,8 @@ float model::train_batch(const buffer& x, const buffer& y)
 	update_params(_learning_rate, 1);
 
 	float loss = 0.0f;
-	for (size_t b = 0; b < dy.shape(0); b++)
-		for (size_t i = 0; i < dy.shape(1); i++)
+	for (uint b = 0; b < dy.shape(0); b++)
+		for (uint i = 0; i < dy.shape(1); i++)
 			loss += dy[b][i] * dy[b][i];
 	return loss;
 }

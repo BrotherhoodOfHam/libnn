@@ -39,8 +39,8 @@ namespace nn
 				auto x = _x.as_vector();
 				
 				foreach(x.size(), [&](uint i) {
-					//y = f(x, [y])
-					y[i] = func(x[i], y[i]);
+					//y = f(x)
+					y[i] = func(x[i]);
 				});
 
 				return y.data();

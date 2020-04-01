@@ -22,7 +22,7 @@ namespace nn
 		using data = std::vector<scalar>;
 		using label = uint8_t;
 
-		model(size_t input_size, size_t max_batch_size, float learning_rate);
+		model(uint input_size, uint max_batch_size, float learning_rate);
 		~model();
 
 		model(const model&) = delete;
