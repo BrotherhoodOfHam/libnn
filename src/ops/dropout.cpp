@@ -2,7 +2,7 @@
 	Dropout regularization node
 */
 
-#include "nn/dropout.h"
+#include "nn/ops/dropout.h"
 
 using namespace nn;
 

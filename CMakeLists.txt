@@ -68,21 +68,21 @@ file(COPY
 #################################################################################################
 
 set(libnn_headers
+    include/nn/ops/node.h
+    include/nn/ops/activations.h
+    include/nn/ops/dense.h
+    include/nn/ops/dropout.h
     include/nn/common.h
     include/nn/tensors.h
-    include/nn/node.h
-    include/nn/activations.h
-    include/nn/dense_layer.h
-    include/nn/dropout.h
     include/nn/sequence.h
     include/nn/model.h
 )
 
 set(libnn_sources
+    src/ops/activations.cpp
+    src/ops/dense.cpp
+    src/ops/dropout.cpp
     src/common.cpp
-    src/activations.cpp
-    src/dense_layer.cpp
-    src/dropout.cpp
     src/sequence.cpp
     src/model_serialization.cpp
     src/model.cpp
@@ -90,8 +90,7 @@ set(libnn_sources
 
 add_library(libnn ${libnn_headers} ${libnn_sources})
 target_include_directories(libnn PUBLIC "${PROJECT_SOURCE_DIR}/include")
-# we need c++17 to use parallel algorithms
-target_compile_features(libnn PUBLIC cxx_std_17)
+target_compile_features(libnn PUBLIC cxx_std_17) # we need c++17 to use parallel algorithms
 
 assign_source_groups(${libnn_headers} ${libnn_sources})
 

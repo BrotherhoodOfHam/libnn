@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include "nn/model.h"
-#include "nn/dense_layer.h"
+#include "nn/ops/dense.h"
 
 using namespace nn;
 
@@ -42,8 +42,8 @@ bool model::serialize(const std::string& filename)
 	std::vector<dense_layer*> layers;
 	for (auto& node : _nodes)
 	{
-		auto dense = dynamic_cast<dense_layer*>(node.get());
-		if (dense != nullptr) layers.push_back(dense);
+		auto d = dynamic_cast<dense_layer*>(node.get());
+		if (d != nullptr) layers.push_back(d);
 	}
 
 	write(f, s_magic);
@@ -84,8 +84,8 @@ bool model::deserialize(const std::string& filename)
 	std::vector<dense_layer*> layers;
 	for (auto& node : _nodes)
 	{
-		auto dense = dynamic_cast<dense_layer*>(node.get());
-		if (dense != nullptr) layers.push_back(dense);
+		auto d = dynamic_cast<dense_layer*>(node.get());
+		if (d != nullptr) layers.push_back(d);
 	}
 
 	uint magic = read<uint>(f);

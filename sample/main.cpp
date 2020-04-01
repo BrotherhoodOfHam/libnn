@@ -4,9 +4,9 @@
 
 #include "mnist/mnist_reader_less.hpp"
 #include "nn/model.h"
-#include "nn/activations.h"
-#include "nn/dense_layer.h"
-#include "nn/dropout.h"
+#include "nn/ops/activations.h"
+#include "nn/ops/dense.h"
+#include "nn/ops/dropout.h"
 #include "gan.h"
 
 #include "nn/tensors.h"

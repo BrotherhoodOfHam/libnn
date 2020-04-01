@@ -4,7 +4,7 @@
 
 #include <random>
 
-#include "nn/dense_layer.h"
+#include "nn/ops/dense.h"
 
 using namespace nn;
 
@@ -17,13 +17,13 @@ dense_layer::dense_layer(node_shape input_shape, size_t layer_size) :
 {
 	assert(input_shape.size() == 2);
 	
-	std::default_random_engine gen;
+	auto rng = new_random_engine();
 	std::normal_distribution<float> dist(0, 1);
 	const float sqrtn = std::sqrt((float)input_shape[1]);
 
 	for (uint j = 0; j < w.shape(0); j++)
 		for (uint i = 0; i < w.shape(1); i++)
-			w[j][i] = dist(gen) / sqrtn;
+			w[j][i] = dist(rng) / sqrtn;
 
 	for (uint i = 0; i < b.shape(0); i++)
 		b[i] = 0.0f;

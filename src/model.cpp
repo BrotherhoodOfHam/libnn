@@ -9,9 +9,6 @@
 #include <chrono>
 
 #include "nn/model.h"
-#include "nn/activations.h"
-#include "nn/dense_layer.h"
-#include "nn/dropout.h"
 
 using namespace nn;
 

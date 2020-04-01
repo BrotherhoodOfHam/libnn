@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "tensors.h"
+#include "../tensors.h"
 
 namespace nn
 {

@@ -61,18 +61,6 @@ namespace nn
 			}
 		};
 
-		// Linear function:
-		//  f(x) = x
-		class linear : public activation_node
-		{
-		public:
-
-			using activation_node::activation_node;
-
-			const buffer& forward(const buffer& x) override;
-			const buffer& backward(const buffer& x, const buffer& dy) override;
-		};
-
 		// Sigmoid function:
 		//  f(x) = 1 / (1 + e^-x)
 		class sigmoid : public activation_node

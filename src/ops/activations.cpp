@@ -5,21 +5,9 @@
 #include <cmath>
 #include <algorithm>
 
-#include "nn/activations.h"
+#include "nn/ops/activations.h"
 
 using namespace nn;
-
-/*************************************************************************************************************************************/
-
-const buffer& activation::linear::forward(const buffer& x)
-{
-	return x;
-}
-
-const buffer& activation::linear::backward(const buffer& x, const buffer& dy)
-{
-	return dy;
-}
 
 /*************************************************************************************************************************************/
 
