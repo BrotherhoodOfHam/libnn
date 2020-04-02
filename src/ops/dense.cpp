@@ -35,13 +35,13 @@ const buffer& dense_layer::forward(const buffer& _x)
 	
 	//for each row:
 	//y = w.x + b
-	foreach(y.layout(), [&](uint b, uint j) {
+	foreach(y.layout(), [&](uint n, uint j) {
 		//z = w.x + b
 		scalar z = 0.0f;
 		for (uint i = 0; i < w.shape(1); i++)
-			z += x[b][i] * w[j][i];
-		z += x[b][j];
-		y[b][j] = z;
+			z += x[n][i] * w[j][i];
+		z += b[j];
+		y[n][j] = z;
 	});
 
 	return y.data();
