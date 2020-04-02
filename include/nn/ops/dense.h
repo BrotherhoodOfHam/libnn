@@ -8,7 +8,7 @@
 
 namespace nn
 {
-	class dense_layer final : public node
+	class dense_layer final : public parameterised_node
 	{
 		tensor<2> w, dw;
 		tensor<1> b, db;
@@ -24,9 +24,7 @@ namespace nn
 		const buffer& forward(const buffer& x) override;
 		const buffer& backward(const buffer& x, const buffer& dy) override;
 
-		void update_params(float k, float r) override;
-
-		const buffer& weights() const { return w.data(); }
-		const buffer& biases() const { return b.data(); }
+		node_parameter get_w() const override { return node_parameter{ w.data(), dw.data() }; }
+		node_parameter get_b() const override { return node_parameter{ b.data(), db.data() }; }
 	};
 }

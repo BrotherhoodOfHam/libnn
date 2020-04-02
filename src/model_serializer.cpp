@@ -39,10 +39,10 @@ bool model::serialize(const std::string& filename)
 		return false;
 	}
 
-	std::vector<dense_layer*> layers;
+	std::vector<parameterised_node*> layers;
 	for (auto& node : _nodes)
 	{
-		auto d = dynamic_cast<dense_layer*>(node.get());
+		auto d = dynamic_cast<parameterised_node*>(node.get());
 		if (d != nullptr) layers.push_back(d);
 	}
 
@@ -51,8 +51,8 @@ bool model::serialize(const std::string& filename)
 
 	for (auto layer : layers)
 	{
-		const buffer& w = layer->weights();
-		const buffer& b = layer->biases();
+		const buffer& w = layer->get_w().p;
+		const buffer& b = layer->get_b().p;
 
 		write<uint>(f, w.size());
 		write<uint>(f, b.size());
@@ -81,10 +81,10 @@ bool model::deserialize(const std::string& filename)
 		return false;
 	}
 
-	std::vector<dense_layer*> layers;
+	std::vector<parameterised_node*> layers;
 	for (auto& node : _nodes)
 	{
-		auto d = dynamic_cast<dense_layer*>(node.get());
+		auto d = dynamic_cast<parameterised_node*>(node.get());
 		if (d != nullptr) layers.push_back(d);
 	}
 
@@ -110,8 +110,8 @@ bool model::deserialize(const std::string& filename)
 		uint w_size = read<uint>(f);
 		uint b_size = read<uint>(f);
 
-		const buffer& w = layer->weights();
-		const buffer& b = layer->biases();
+		const buffer& w = layer->get_w().p;
+		const buffer& b = layer->get_b().p;
 
 		if (w_size != w.size())
 		{

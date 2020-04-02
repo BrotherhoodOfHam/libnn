@@ -29,8 +29,6 @@ namespace nn
 			node_shape input_shape() const override { return _shape; }
 			node_shape output_shape() const override { return _shape; }
 
-			void update_params(float k, float r) override {}
-
 		protected:
 
 			template<class function_type>

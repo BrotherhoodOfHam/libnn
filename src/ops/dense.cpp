@@ -87,17 +87,4 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	return dx.data();
 }
 
-void dense_layer::update_params(float k, float r)
-{
-	// apply gradient descent
-	foreach(b.layout(), [&](uint i) {
-		b[i] -= k * db[i];
-	});
-
-	foreach(w.layout(), [&](uint j, uint i) {
-		//w[j][i] = (r * w[j][i]) - (k * dw[j][i]);
-		w[j][i] -= k * dw[j][i];
-	});
-}
-
 /*************************************************************************************************************************************/

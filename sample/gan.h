@@ -15,13 +15,7 @@ namespace nn
 
 	public:
 
-		gan(model& g, model& d) :
-			_g(g), _d(d)
-		{
-			assert(node_shape::equals(_g.output_shape(), _d.input_shape()));
-			assert(_d.output_shape()[0] == 1);
-		}
-
+		gan(model& g, model& d);
 		void train(const std::vector<buffer>& data, uint epochs);
 
 	private:

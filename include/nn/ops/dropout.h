@@ -27,7 +27,5 @@ namespace nn
 
 		const buffer& forward(const buffer& x) override;
 		const buffer& backward(const buffer& x, const buffer& dy) override;
-
-		void update_params(float k, float r) override {}
 	};
 }

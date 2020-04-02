@@ -27,20 +27,21 @@ namespace nn
 
 	class buffer
 	{
-		std::unique_ptr<scalar[]> _data;
+		std::shared_ptr<scalar[]> _ptr;
 		uint                      _size = 0;
 
 	public:
 
 		buffer() = default;
 		buffer(buffer && rhs) = default;
+		buffer(const buffer&) = default;
 
-		buffer(uint size) :
+		explicit buffer(uint size) :
 			_size(size),
-			_data(new scalar[size])
+			_ptr(new scalar[size])
 		{}
 
-		scalar* ptr() const { return _data.get(); }
+		scalar* ptr() const { return _ptr.get(); }
 		uint size() const { return _size; }
 		bool is_empty() const { return _size == 0; }
 
@@ -245,12 +246,6 @@ namespace nn
 		buffer& data() { return this->_data; }
 	};
 
-	template<uint dims>
-	inline tensor_slice<dims> buffer::as_tensor(const layout<dims>& l) const
-	{
-		return tensor_slice<dims>(*this, l);
-	}
-
 
 	class vector_slice : public tensor_slice<1>
 	{
@@ -271,6 +266,12 @@ namespace nn
 	inline vector_slice buffer::as_vector() const
 	{
 		return vector_slice(*this);
+	}
+
+	template<uint dims>
+	inline tensor_slice<dims> buffer::as_tensor(const layout<dims>& l) const
+	{
+		return tensor_slice<dims>(*this, l);
 	}
 
 	/*************************************************************************************************************************************/

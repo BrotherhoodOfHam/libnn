@@ -75,6 +75,7 @@ set(libnn_headers
     include/nn/common.h
     include/nn/tensors.h
     include/nn/sequence.h
+	include/nn/training.h
     include/nn/model.h
 )
 
@@ -83,8 +84,8 @@ set(libnn_sources
     src/ops/dense.cpp
     src/ops/dropout.cpp
     src/common.cpp
-    src/sequence.cpp
-    src/model_serialization.cpp
+    src/training.cpp
+    src/model_serializer.cpp
     src/model.cpp
 )
 

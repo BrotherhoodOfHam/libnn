@@ -6,11 +6,19 @@
 
 #include "CImg.h"
 #include "gan.h"
+#include "nn/training.h"
 
 using namespace nn;
 using namespace cimg_library;
 
 /*************************************************************************************************************************************/
+
+gan::gan(model& g, model& d) :
+	_g(g), _d(d)
+{
+	assert(node_shape::equals(_g.output_shape(), _d.input_shape()));
+	assert(_d.output_shape()[0] == 1);
+}
 
 void gan::train(const std::vector<buffer>& data, uint epochs)
 {
@@ -25,6 +33,9 @@ void gan::train(const std::vector<buffer>& data, uint epochs)
 	const float r = 1;
 
 	std::uniform_real_distribution<double> unif(-1, 1);
+
+	trainer d_trainer(_d, 0.001f);
+	trainer g_trainer(_g, 0.001f);
 
 	for (uint e = 0; e < epochs; e++)
 	{
@@ -51,15 +62,15 @@ void gan::train(const std::vector<buffer>& data, uint epochs)
 			for (uint i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input[i_z] = (scalar)unif(rng);
 
-			_d.train_batch(x_data, y_d_1.data());
-			_d.train_batch(_g.forward(z_input.data()), y_d_0.data());
+			d_trainer.train_batch(x_data, y_d_1.data());
+			d_trainer.train_batch(_g.forward(z_input.data()), y_d_0.data());
 
 			//randomize z
 			for (uint i_z = 0; i_z < z_input.shape(0); i_z++)
 				z_input[i_z] = (scalar)unif(rng);
 
-			const auto& dy = _d.forward_backwards(_g.forward(z_input.data()), y_g.data());
-			_g.train_from_gradient(dy);
+			const auto& dy = d_trainer.forward_backwards(_g.forward(z_input.data()), y_g.data());
+			g_trainer.train_from_gradient(dy);
 		}
 
 		std::cout << "(" << c << "/" << data.size() << ") 100%";

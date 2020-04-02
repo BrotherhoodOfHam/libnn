@@ -3,7 +3,7 @@
 */
 
 #include "mnist/mnist_reader_less.hpp"
-#include "nn/model.h"
+#include "nn/training.h"
 #include "nn/ops/activations.h"
 #include "nn/ops/dense.h"
 #include "nn/ops/dropout.h"
@@ -17,11 +17,11 @@ using namespace nn;
 
 struct dataset
 {
-	std::vector<model::data> x_train, x_test;
-	std::vector<model::label> y_train, y_test;
+	std::vector<trainer::data> x_train, x_test;
+	std::vector<trainer::label> y_train, y_test;
 };
 
-void process_image(std::vector<model::data>& dataset, const std::vector<uint8_t>& image)
+void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_t>& image)
 {
 	auto& data = dataset.emplace_back(image.size());
 	for (size_t i = 0; i < data.size(); i++)
@@ -66,7 +66,7 @@ int gan_main()
 	uint z_size = 10;
 	uint img_size = 28 * 28;
 
-	model g(z_size, 1, 0.01f);
+	model g(z_size, 1);
 	g.add<dense_layer>(256);
 	g.add<activation::leaky_relu>(0.1f);
 	g.add<dense_layer>(512);
@@ -76,7 +76,7 @@ int gan_main()
 	g.add<dense_layer>(img_size);
 	g.add<activation::tanh>();
 
-	model d(img_size, 1, 0.01f);
+	model d(img_size, 1);
 	d.add<dense_layer>(1024);
 	d.add<activation::leaky_relu>(0.1f);
 	d.add<dropout>(0.3f);
@@ -123,18 +123,19 @@ int main()
 
 	dataset ds = load_mnist();
 
-	model classifier(28*28, 100, 0.01f);
+	model classifier(28*28, 100);
 	classifier.add<dense_layer>(100);
 	classifier.add<activation::relu>();
-	classifier.add<dropout>(0.1f);
+	classifier.add<dropout>(0.2f);
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);
 	classifier.add<activation::sigmoid>();
 
-	classifier.train(
+	trainer t(classifier, 0.01f);
+	t.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
-		10
+		30
 	);
 
 	classifier.serialize("classifier.bin");

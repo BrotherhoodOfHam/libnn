@@ -3,7 +3,7 @@
 
 using namespace nn;
 
-const buffer& sequence::forward(const buffer& x)
+const buffer& model::forward(const buffer& x, bool is_training)
 {
 	auto a = std::cref(x);
 	_activations.clear();
@@ -11,7 +11,7 @@ const buffer& sequence::forward(const buffer& x)
 
 	for (auto& node : _nodes)
 	{
-		node->set_state(is_training());
+		node->set_state(is_training);
 		a = node->forward(a);
 		_activations.push_back(a);
 	}
@@ -19,14 +19,14 @@ const buffer& sequence::forward(const buffer& x)
 	return _activations.back();
 }
 
-const buffer& sequence::backward(const buffer& x, const buffer& dy)
+const buffer& model::backward(const buffer& dy, bool is_training)
 {
 	auto d = std::ref(dy);
 
 	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
 	{
 		auto node = _nodes[i].get();
-		node->set_state(is_training());
+		node->set_state(is_training);
 		d = node->backward(_activations[i], d);
 	}
 

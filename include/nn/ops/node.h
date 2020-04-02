@@ -36,14 +36,21 @@ namespace nn
 
 		// back propagate the gradient
 		virtual const buffer& backward(const buffer& x, const buffer& dy) = 0;
-
-		// update parameters
-		virtual void update_params(float k, float r) = 0;
 	};
 
+	struct node_parameter
+	{
+		buffer p, dp;
+	};
+
+	/*
+		Node representing a differentiable operation with 2 learnable parameters
+	*/
 	class parameterised_node : public node
 	{
 	public:
 
+		virtual node_parameter get_w() const = 0;
+		virtual node_parameter get_b() const = 0;
 	};
 }
