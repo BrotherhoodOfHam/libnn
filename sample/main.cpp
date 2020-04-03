@@ -3,13 +3,12 @@
 */
 
 #include "mnist/mnist_reader_less.hpp"
-#include "nn/training.h"
+
 #include "nn/ops/activations.h"
 #include "nn/ops/dense.h"
 #include "nn/ops/dropout.h"
+#include "nn/training.h"
 #include "gan.h"
-
-#include "nn/tensors.h"
 
 using namespace nn;
 
@@ -21,11 +20,15 @@ struct dataset
 	std::vector<trainer::label> y_train, y_test;
 };
 
-void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_t>& image)
+void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_t>& image, bool normalize_negative = false)
 {
 	auto& data = dataset.emplace_back(image.size());
 	for (size_t i = 0; i < data.size(); i++)
+	{
 		data[i] = (float)image[i] / 255.0f;
+		if (normalize_negative)
+			data[i] = (data[i] - 0.5f) * 2;
+	}
 }
 
 dataset load_mnist()
@@ -63,10 +66,11 @@ dataset load_mnist()
 
 int gan_main()
 {
+	uint batch_size = 100;
 	uint z_size = 10;
 	uint img_size = 28 * 28;
 
-	model g(z_size, 1);
+	model g(z_size, batch_size);
 	g.add<dense_layer>(256);
 	g.add<activation::leaky_relu>(0.1f);
 	g.add<dense_layer>(512);
@@ -76,7 +80,7 @@ int gan_main()
 	g.add<dense_layer>(img_size);
 	g.add<activation::tanh>();
 
-	model d(img_size, 1);
+	model d(img_size, batch_size);
 	d.add<dense_layer>(1024);
 	d.add<activation::leaky_relu>(0.1f);
 	d.add<dropout>(0.3f);
@@ -95,21 +99,13 @@ int gan_main()
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
 
 	const size_t dataset_size = dataset.training_images.size();
-	std::vector<buffer> data;
-	data.reserve(dataset_size);
+	std::vector<trainer::data> real_data;
+	real_data.reserve(dataset_size);
 	
-	for (size_t d = 0; d < dataset_size; d++)
-	{
-		buffer& dta = data.emplace_back(img_size);
-		//(0,255) -> (-1,1)
-		const auto& img = dataset.training_images[d];
-		for (size_t i = 0; i < img.size(); i++)
-		{
-			dta.ptr()[i] = (((float)img[i] / 255.0f) - 0.5f) * 2;
-		}
-	}
+	for (const auto& image : dataset.training_images)
+		process_image(real_data, image, true);
 
-	gn.train(data, 300);
+	gn.train(real_data, 300);
 
 	return 0;
 }
@@ -120,7 +116,7 @@ int main()
 {
 	//!!!!!!!!!!!!!!!!!
 	//return gan_main();
-
+	
 	dataset ds = load_mnist();
 
 	model classifier(28*28, 100);

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "nn/model.h"
+#include "nn/training.h"
 
 namespace nn
 {
@@ -16,10 +17,10 @@ namespace nn
 	public:
 
 		gan(model& g, model& d);
-		void train(const std::vector<buffer>& data, uint epochs);
+		void train(const std::vector<trainer::data>& data, uint epochs);
 
 	private:
 
-		void save_generated_images(uint id);
+		void save_generated_images(uint id, const tensor<2>& z_batch);
 	};
 }
