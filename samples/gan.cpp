@@ -33,7 +33,7 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 	// testing batch
 	tensor<2> z_batch_test(_g.input_shape());
 	thread_local auto rng = new_random_engine();
-	fill_buffer(z_batch_test.data(), [&]() { return unif(rng); });
+	fill_buffer(z_batch_test.data(), [&]() { return (scalar)unif(rng); });
 	assert(z_batch_test.shape(0) >= 5 * 5);
 	
 	const uint batch_size = z_input.shape(0);

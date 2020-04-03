@@ -8,7 +8,6 @@
 #include "nn/ops/dense.h"
 #include "nn/ops/dropout.h"
 #include "nn/training.h"
-#include "gan.h"
 
 using namespace nn;
 
@@ -64,59 +63,8 @@ dataset load_mnist()
 
 /*************************************************************************************************************************************/
 
-int gan_main()
-{
-	uint batch_size = 100;
-	uint z_size = 10;
-	uint img_size = 28 * 28;
-
-	model g(z_size, batch_size);
-	g.add<dense_layer>(256);
-	g.add<activation::leaky_relu>(0.1f);
-	g.add<dense_layer>(512);
-	g.add<activation::leaky_relu>(0.1f);
-	g.add<dense_layer>(1024);
-	g.add<activation::leaky_relu>(0.1f);
-	g.add<dense_layer>(img_size);
-	g.add<activation::tanh>();
-
-	model d(img_size, batch_size);
-	d.add<dense_layer>(1024);
-	d.add<activation::leaky_relu>(0.1f);
-	d.add<dropout>(0.3f);
-	d.add<dense_layer>(512);
-	d.add<activation::leaky_relu>(0.1f);
-	d.add<dropout>(0.3f);
-	d.add<dense_layer>(256);
-	d.add<activation::leaky_relu>(0.1f);
-	d.add<dropout>(0.3f);
-	d.add<dense_layer>(1);
-	d.add<activation::sigmoid>();
-
-	gan gn(g, d);
-
-	//prepare data
-	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
-
-	const size_t dataset_size = dataset.training_images.size();
-	std::vector<trainer::data> real_data;
-	real_data.reserve(dataset_size);
-	
-	for (const auto& image : dataset.training_images)
-		process_image(real_data, image, true);
-
-	gn.train(real_data, 300);
-
-	return 0;
-}
-
-/*************************************************************************************************************************************/
-
 int main()
 {
-	//!!!!!!!!!!!!!!!!!
-	//return gan_main();
-	
 	dataset ds = load_mnist();
 
 	model classifier(28*28, 100);

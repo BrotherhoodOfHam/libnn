@@ -60,7 +60,7 @@ file(COPY
     "${PROJECT_SOURCE_DIR}/deps/mnist/train-labels-idx1-ubyte"
     "${PROJECT_SOURCE_DIR}/deps/mnist/t10k-images-idx3-ubyte"
     "${PROJECT_SOURCE_DIR}/deps/mnist/t10k-labels-idx1-ubyte"
-    DESTINATION "${PROJECT_BINARY_DIR}/mnist"
+    DESTINATION "${PROJECT_BINARY_DIR}/samples/mnist"
 )
 
 #################################################################################################
@@ -74,7 +74,6 @@ set(libnn_headers
     include/nn/ops/dropout.h
     include/nn/common.h
     include/nn/tensors.h
-    include/nn/sequence.h
 	include/nn/training.h
     include/nn/model.h
 )
@@ -97,14 +96,7 @@ assign_source_groups(${libnn_headers} ${libnn_sources})
 
 #################################################################################################
 
-set(sample_sources
-    sample/gan.h
-    sample/gan.cpp
-    sample/main.cpp
-)
-
-# sample program
-add_executable(testing ${sample_sources})
-target_link_libraries(testing PUBLIC libnn CImg MNIST)
+# Sample programs
+add_subdirectory(samples)
 
 #################################################################################################
