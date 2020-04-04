@@ -22,7 +22,7 @@ namespace nn
 	public:
 
 		model(uint input_size, uint max_batch_size) :
-			_input({ max_batch_size, input_size })
+			_input(node_shape{ max_batch_size, input_size })
 		{}
 
 		// add node

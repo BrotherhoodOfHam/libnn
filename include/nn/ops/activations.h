@@ -36,7 +36,7 @@ namespace nn
 			{
 				auto x = _x.as_vector();
 				
-				foreach(x.size(), [&](uint i) {
+				dispatch(x.size(), [&](uint i) {
 					//y = f(x)
 					y[i] = func(x[i]);
 				});
@@ -50,7 +50,7 @@ namespace nn
 				auto x = _x.as_vector();
 				auto dy = _dy.as_vector();
 
-				foreach(x.size(), [&](uint i) {
+				dispatch(x.size(), [&](uint i) {
 					//dx = f'(x, y, dy, [dx])
 					dx[i] = func(x[i], y[i], dy[i], dx[i]);
 				});

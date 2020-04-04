@@ -47,4 +47,10 @@ namespace nn
 
 		void loss_derivative(const buffer& y, const buffer& t, buffer& dy);
 	};
+
+	template<typename func_type, class = std::enable_if_t<std::is_invocable_v<func_type, span<trainer::data>>>>
+	void foreach_training_batch(const std::vector<trainer::data>& data, uint batch_size, const func_type& callback)
+	{
+
+	}
 }

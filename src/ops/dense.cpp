@@ -35,7 +35,7 @@ const buffer& dense_layer::forward(const buffer& _x)
 	
 	//for each row:
 	//y = w.x + b
-	foreach(y.layout(), [&](uint n, uint j) {
+	dispatch(y.layout(), [&](uint n, uint j) {
 		//z = w.x + b
 		scalar z = 0.0f;
 		for (uint i = 0; i < w.shape(1); i++)
@@ -58,7 +58,7 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	const uint batch_size = x.shape(0);
 
 	// compute partial derivatives w.r.t biases
-	foreach(b.layout(), [&](uint i) {
+	dispatch(b.layout(), [&](uint i) {
 		// δb = δy
 		scalar sum = 0;
 		for (uint b = 0; b < batch_size; b++)
@@ -67,7 +67,7 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	});
 
 	// compute partial derivatives w.r.t weights
-	foreach(w.layout(), [&](uint j, uint i) {
+	dispatch(w.layout(), [&](uint j, uint i) {
 		// δw = δy * x (outer product)
 		scalar sum = 0;
 		for (uint b = 0; b < batch_size; b++)
@@ -76,7 +76,7 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	});
 
 	// compute partial derivative w.r.t input x
-	foreach(dx.layout(), [&](uint b, uint i) {
+	dispatch(dx.layout(), [&](uint b, uint i) {
 		// δx = w^T * δy
 		scalar sum = 0;
 		for (uint j = 0; j < w.shape(0); j++)

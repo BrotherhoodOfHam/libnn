@@ -99,7 +99,7 @@ namespace nn
 
 		layout() = default;
 
-		layout(const extents& shape)
+		explicit layout(const extents& shape)
 		{
 			assert(shape.size() == dims);
 			std::copy(shape.begin(), shape.end(), _shape.begin());
@@ -107,7 +107,7 @@ namespace nn
 		}
 
 		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
-		layout(args_type&& ... dimension) :
+		explicit layout(args_type&& ... dimension) :
 			layout(extents(std::initializer_list<uint>{ (uint)dimension... }))
 		{}
 
@@ -134,7 +134,6 @@ namespace nn
 			_size = _strides[0] * _shape[0];
 		}
 	};
-
 
 	template<uint dims>
 	class tensor_slice
@@ -169,6 +168,7 @@ namespace nn
 
 		inline constexpr uint shape(uint i) const { return _shape[i]; }
 		inline extents shape() const { return extents(_shape, _shape + dims); }
+		scalar* ptr() const { return _ptr; }
 
 		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
 		scalar& at(args_type ... index) const
@@ -201,7 +201,7 @@ namespace nn
 			}
 		}
 
-		friend void update_tensor(const tensor_slice<1>& slice, const std::vector<scalar>& data);
+		friend class vector_slice;
 	};
 
 	namespace internal
@@ -255,9 +255,15 @@ namespace nn
 
 	public:
 
-		vector_slice(const buffer& buf) :
+		explicit vector_slice(const buffer& buf) :
 			tensor_slice(buf.ptr(), &_size, &stride),
 			_size((uint)buf.size())
+		{}
+
+		template<uint n>
+		vector_slice(const tensor_slice<n>& slice) :
+			tensor_slice(slice._ptr, &_size, &stride),
+			_size(slice._shape[0] * slice._strides[0])
 		{}
 
 		uint size() const { return _size; }
@@ -275,6 +281,9 @@ namespace nn
 	}
 
 	/*************************************************************************************************************************************/
+
+	template<typename function_type, typename ... args_type>
+	using if_callable = std::enable_if_t<std::is_invocable_v<function_type, args_type...>, function_type>;
 
 	class counting_iterator
 	{
@@ -310,22 +319,22 @@ namespace nn
 		uint operator*() { return count; }
 	};
 
-	template<class function_type>
-	inline void foreach(uint count, const function_type& kernel)
+	template<class K, class = if_callable<K, uint>>
+	inline void dispatch(uint count, const K& kernel)
 	{
 		std::for_each(std::execution::par, counting_iterator(0), counting_iterator(count), kernel);
 	}
 
-	template<class function_type>
-	inline void foreach(const layout<1>& layout, const function_type& kernel)
+	template<class K, class = if_callable<K, uint>>
+	inline void dispatch(const layout<1>& layout, const K& kernel)
 	{
-		foreach(layout.size(), kernel);
+		dispatch(layout.size(), kernel);
 	}
 
-	template<class function_type>
-	inline void foreach(const layout<2>& layout, const function_type& kernel)
+	template<class K, class = if_callable<K, uint, uint>>
+	inline void dispatch(const layout<2>& layout, const K& kernel)
 	{
-		foreach(layout.size(), [&](size_t i) {
+		dispatch(layout.size(), [&](uint i) {
 			extents s = layout.shape();
 			uint a = (i / layout.stride(0)) % layout.shape(0);
 			uint b = (i / layout.stride(1)) % layout.shape(1);
@@ -333,10 +342,10 @@ namespace nn
 		});
 	}
 
-	template<class function_type>
-	inline void foreach(const layout<3>& layout, const function_type& kernel)
+	template<class K, class = if_callable<K, uint, uint, uint>>
+	inline void dispatch(const layout<3>& layout, const K& kernel)
 	{
-		foreach(layout.size(), [&](size_t i) {
+		dispatch(layout.size(), [&](uint i) {
 			extents s = layout.shape();
 			uint a = (i / layout.stride(0)) % layout.shape(0);
 			uint b = (i / layout.stride(1)) % layout.shape(1);
@@ -345,29 +354,29 @@ namespace nn
 		});
 	}
 
-	inline void fill_buffer(const buffer& x, scalar value)
+	inline void tensor_fill(const vector_slice& x, scalar value)
 	{
-		foreach(x.size(), [&](uint i)
+		dispatch(x.size(), [&](uint i)
 		{
-			x.ptr()[i] = value;
+			x[i] = value;
 		});
 	}
 
-	template<class function_type>
-	inline void fill_buffer(const buffer& x, const function_type& f)
+	template<class F, class = std::enable_if_t<std::is_invocable_r_v<scalar, F>>>
+	inline void tensor_fill(const vector_slice& x, const F& f)
 	{
-		foreach(x.size(), [&](uint i)
+		dispatch(x.size(), [&](uint i)
 		{
-			x.ptr()[i] = f();
+			x[i] = f();
 		});
 	}
 
-	inline void zero_buffer(const buffer& x) { fill_buffer(x, 0.0f); }
+	inline void tensor_zero(const vector_slice& x) { tensor_fill(x, 0.0f); }
 
-	inline void update_tensor(const tensor_slice<1>& slice, const std::vector<scalar>& data)
+	inline void tensor_update(const vector_slice& slice, const std::vector<scalar>& data)
 	{
-		assert(data.size() == slice._shape[0]);
-		std::copy(data.begin(), data.end(), slice._ptr);
+		assert(data.size() == slice.size());
+		std::copy(data.begin(), data.end(), slice.ptr());
 	}
 
 	/*************************************************************************************************************************************/

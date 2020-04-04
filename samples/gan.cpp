@@ -17,23 +17,23 @@ gan::gan(model& g, model& d) :
 	_g(g), _d(d)
 {
 	assert(node_shape::equals(_g.output_shape(), _d.input_shape()));
-	assert(_d.output_shape()[0] == 1);
+	assert(_d.output_shape()[1] == 1);
 }
 
 void gan::train(const std::vector<trainer::data>& data, uint epochs)
 {
 	tensor<2> z_input(_g.input_shape());
 	tensor<2> real_input(_d.input_shape());
-	tensor<2> y_d_1(_d.output_shape());  fill_buffer(y_d_1.data(), 0.9f);
-	tensor<2> y_d_0(_d.output_shape());  fill_buffer(y_d_0.data(), 0.0f);
-	tensor<2> y_g(_d.output_shape());    fill_buffer(y_g.data(),   1.0f);
+	tensor<2> y_d_1(_d.output_shape());  tensor_fill(y_d_1, 0.9f);
+	tensor<2> y_d_0(_d.output_shape());  tensor_fill(y_d_0, 0.0f);
+	tensor<2> y_g(_d.output_shape());    tensor_fill(y_g,   1.0f);
 	
 	std::uniform_real_distribution<double> unif(-1, 1);
 
 	// testing batch
 	tensor<2> z_batch_test(_g.input_shape());
 	thread_local auto rng = new_random_engine();
-	fill_buffer(z_batch_test.data(), [&]() { return (scalar)unif(rng); });
+	tensor_fill(z_batch_test, [&](){ return (scalar)unif(rng); });
 	assert(z_batch_test.shape(0) >= 5 * 5);
 	
 	const uint batch_size = z_input.shape(0);
@@ -72,19 +72,18 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 
 			// update batch
 			uint batch_index = i % batch_size;
-			update_tensor(real_input[batch_index], data[indices[i]]);
+			tensor_update(real_input[batch_index], data[indices[i]]);
 			
 			if (batch_index == 0 && i > 0)
 			{
-
 				//randomize z
-				fill_buffer(z_input.data(), [&]() { return (scalar)unif(rng); });
+				tensor_fill(z_input, [&]() { return (scalar)unif(rng); });
 
 				d_trainer.train_batch(real_input.data(), y_d_1.data());
 				d_trainer.train_batch(_g.forward(z_input.data()), y_d_0.data());
 
 				//randomize z
-				fill_buffer(z_input.data(), [&]() { return (scalar)unif(rng); });
+				tensor_fill(z_input, [&]() { return (scalar)unif(rng); });
 
 				const auto& dy = d_trainer.forward_backwards(_g.forward(z_input.data()), y_g.data());
 				g_trainer.train_from_gradient(dy);

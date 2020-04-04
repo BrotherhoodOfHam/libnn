@@ -26,29 +26,29 @@ void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_
 
 int main()
 {
-	uint batch_size = 50;
+	uint batch_size = 100;
 	uint z_size = 10;
 	uint img_size = 28 * 28;
 
 	model g(z_size, batch_size);
 	g.add<dense_layer>(256);
-	g.add<activation::leaky_relu>(0.1f);
+	g.add<activation::leaky_relu>(0.2f);
 	g.add<dense_layer>(512);
-	g.add<activation::leaky_relu>(0.1f);
+	g.add<activation::leaky_relu>(0.2f);
 	g.add<dense_layer>(1024);
-	g.add<activation::leaky_relu>(0.1f);
+	g.add<activation::leaky_relu>(0.2f);
 	g.add<dense_layer>(img_size);
 	g.add<activation::tanh>();
 
 	model d(img_size, batch_size);
 	d.add<dense_layer>(1024);
-	d.add<activation::leaky_relu>(0.1f);
+	d.add<activation::leaky_relu>(0.2f);
 	d.add<dropout>(0.3f);
 	d.add<dense_layer>(512);
-	d.add<activation::leaky_relu>(0.1f);
+	d.add<activation::leaky_relu>(0.2f);
 	d.add<dropout>(0.3f);
 	d.add<dense_layer>(256);
-	d.add<activation::leaky_relu>(0.1f);
+	d.add<activation::leaky_relu>(0.2f);
 	d.add<dropout>(0.3f);
 	d.add<dense_layer>(1);
 	d.add<activation::sigmoid>();

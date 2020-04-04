@@ -73,7 +73,7 @@ void trainer::train(
 	tensor<2> input(_input_layout);
 	tensor<2> output(_output_layout);
 
-	zero_buffer(output.data());
+	tensor_zero(output);
 
 	for (size_t ep = 0; ep < epochs; ep++)
 	{
@@ -107,10 +107,10 @@ void trainer::train(
 				//training
 				training_loss += train_batch(input.data(), output.data());
 
-				zero_buffer(output.data());
+				tensor_zero(output);
 			}
 
-			update_tensor(input[batch_index], x_train[i_sample]);
+			tensor_update(input[batch_index], x_train[i_sample]);
 			output[batch_index][y_train[i_sample]] = 1;
 
 			i_count++;
@@ -141,10 +141,10 @@ void trainer::train(
 						loss += std::pow(prediction[b][i] - output[b][i], 2);
 				}
 
-				zero_buffer(output.data());
+				tensor_zero(output);
 			}
 
-			update_tensor(input[batch_index], x_test[i_sample]);
+			tensor_update(input[batch_index], x_test[i_sample]);
 			output[batch_index][y_test[i_sample]] = 1;
 		}
 		loss /= (2.0 * x_test.size());
@@ -203,7 +203,7 @@ void trainer::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 	auto dy = _dy.as_vector();
 	auto t = _t.as_vector();
 
-	foreach(dy.size(), [&](uint i) {
+	dispatch(dy.size(), [&](uint i) {
 		dy[i] = y[i] - t[i];
 	});
 }
@@ -217,7 +217,7 @@ void trainer::update_parameters()
 		auto dp = parameter.dp.as_vector();
 
 		// apply gradient descent
-		foreach(parameter.p.size(), [&](uint i) {
+		dispatch(parameter.p.size(), [&](uint i) {
 			p[i] -= _learning_rate * dp[i];
 		});
 	}
