@@ -26,7 +26,7 @@ void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_
 
 int main()
 {
-	uint batch_size = 100;
+	uint batch_size = 10;
 	uint z_size = 10;
 	uint img_size = 28 * 28;
 

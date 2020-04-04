@@ -25,7 +25,7 @@ dense_layer::dense_layer(node_shape input_shape, size_t layer_size) :
 		for (uint i = 0; i < w.shape(1); i++)
 			w[j][i] = dist(rng) / sqrtn;
 
-	for (uint i = 0; i < b.shape(0); i++)
+	for (uint i = 0; i < b.size(); i++)
 		b[i] = 0.0f;
 }
 

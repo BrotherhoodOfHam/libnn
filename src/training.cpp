@@ -18,7 +18,7 @@ static size_t arg_max(const tensor_slice<1>& v)
 {
 	float max = v[0];
 	uint i_max = 0;
-	for (uint i = 0; i < v.shape(0); i++)
+	for (uint i = 0; i < v.size(); i++)
 	{
 		if (v[i] > max)
 		{
@@ -31,19 +31,20 @@ static size_t arg_max(const tensor_slice<1>& v)
 
 /*************************************************************************************************************************************/
 
-trainer::trainer(model& seq, float learning_rate) :
+trainer::trainer(model& seq, float learning_rate, float momentum) :
 	_model(seq),
 	_input_layout(seq.input_shape()),
-	_output_layout(seq.output_shape()),
-	_learning_rate(learning_rate)
+	_output_layout(seq.output_shape())
 {
 	for (auto& node : _model)
 	{
 		auto p = dynamic_cast<parameterised_node*>(node.get());
 		if (p != nullptr)
 		{
-			_parameters.push_back(p->get_w());
-			_parameters.push_back(p->get_b());
+			auto w = p->get_w();
+			_parameters.push_back(parameter(w.p, w.dp, sgd(w.p.size(), learning_rate, momentum)));
+			auto b = p->get_b();
+			_parameters.push_back(parameter(b.p, b.dp, sgd(b.p.size(), learning_rate, momentum)));
 		}
 	}
 }
@@ -210,16 +211,9 @@ void trainer::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 
 void trainer::update_parameters()
 {
-	//update using gradient descent
-	for (auto& parameter : _parameters)
+	for (auto& p : _parameters)
 	{
-		auto p  = parameter.p.as_vector();
-		auto dp = parameter.dp.as_vector();
-
-		// apply gradient descent
-		dispatch(parameter.p.size(), [&](uint i) {
-			p[i] -= _learning_rate * dp[i];
-		});
+		p.optimize(p.param, p.grad);
 	}
 }
 

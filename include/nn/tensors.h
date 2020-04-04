@@ -15,15 +15,17 @@ namespace nn
 {
 	/*************************************************************************************************************************************/
 
+	using scalar = float;
+
+	class slice;
+
 	template<uint dims>
 	class layout;
 
 	template<uint dims>
 	class tensor_slice;
 
-	class vector_slice;
-
-	using scalar = float;
+	/*************************************************************************************************************************************/
 
 	class buffer
 	{
@@ -47,7 +49,7 @@ namespace nn
 
 		template<uint dims>
 		tensor_slice<dims> as_tensor(const layout<dims>&) const;
-		vector_slice as_vector() const;
+		slice as_vector() const;
 	};
 
 	class extents : public span<const uint>
@@ -103,7 +105,15 @@ namespace nn
 		{
 			assert(shape.size() == dims);
 			std::copy(shape.begin(), shape.end(), _shape.begin());
-			compute_strides();
+			// compute strides
+			for (uint i = 0; i < dims; i++)
+			{
+				uint stride = 1;
+				for (uint j = dims - 1; j > i; j--)
+					stride *= _shape[j];
+				_strides[i] = stride;
+			}
+			_size = _strides[0] * _shape[0];
 		}
 
 		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
@@ -119,20 +129,59 @@ namespace nn
 		uint size() const { return _size; }
 
 		operator extents() const { return shape(); }
+	};
 
-	private:
+	/*************************************************************************************************************************************/
 
-		void compute_strides()
+	class slice
+	{
+		scalar* _ptr;
+		uint    _size;
+
+	protected:
+
+		inline slice(scalar* ptr, const uint* shape, const uint* strides) :
+			_ptr(ptr), _size(shape[0])
+		{}
+
+	public:
+
+		template<uint m>
+		friend class tensor_slice;
+		friend class buffer;
+
+		slice(scalar* ptr, uint size) :
+			_ptr(ptr), _size(size)
+		{}
+
+		template<uint dims>
+		slice(const tensor_slice<dims>& slice) :
+			_ptr(slice.ptr()), _size(slice.total_size())
+		{}
+
+		slice(slice&&) = default;
+		slice(const slice&) = default;
+
+		scalar* ptr() const { return _ptr; }
+		uint size() const { return _size; }
+
+		scalar& at(uint index) const
 		{
-			for (uint i = 0; i < dims; i++)
-			{
-				uint stride = 1;
-				for (uint j = dims - 1; j > i; j--)
-					stride *= _shape[j];
-				_strides[i] = stride;
-			}
-			_size = _strides[0] * _shape[0];
+			assert(index < _size);
+			return _ptr[index];
 		}
+
+		scalar& operator[](uint i) const { return at(i); }
+	};
+
+	template<uint dims>
+	class tensor_slice;
+
+	template<>
+	class tensor_slice<1> : public slice
+	{
+	public:
+		using slice::slice;
 	};
 
 	template<uint dims>
@@ -140,12 +189,9 @@ namespace nn
 	{
 		static_assert(dims > 0, "tensor dimensionality must be at least 1");
 
-		scalar* _ptr;
+		scalar*     _ptr;
 		const uint* _shape;
 		const uint* _strides;
-
-		template<uint m>
-		friend class tensor_slice;
 
 	protected:
 
@@ -155,20 +201,18 @@ namespace nn
 
 	public:
 
-		inline tensor_slice(const buffer& buf, const layout<dims>& layout) :
-			_ptr(buf.ptr()),
-			_shape(layout.shape().begin()),
-			_strides(layout.strides().begin())
-		{
-			assert(buf.size() == layout.size());
-		}
+		template<uint m>
+		friend class tensor_slice;
+		friend class buffer;
 
-		tensor_slice(tensor_slice&& rhs) : tensor_slice((const tensor_slice&)rhs) {}
+		tensor_slice(tensor_slice&&) = default;
 		tensor_slice(const tensor_slice&) = default;
 
+		inline scalar* ptr() const { return _ptr; }
+		inline uint size() const { return _shape[0]; }
+		inline uint total_size() const { return _shape[0] * _strides[0]; }
 		inline constexpr uint shape(uint i) const { return _shape[i]; }
 		inline extents shape() const { return extents(_shape, _shape + dims); }
-		scalar* ptr() const { return _ptr; }
 
 		template<class ... args_type, class = std::enable_if_t<dims == sizeof...(args_type)>>
 		scalar& at(args_type ... index) const
@@ -184,25 +228,29 @@ namespace nn
 			return *ptr;
 		}
 
-		inline std::conditional_t<dims == 1, scalar&, tensor_slice<dims - 1>> operator[](uint i) const
+		inline tensor_slice<dims - 1> operator[](uint index) const
 		{
-			assert(i < _shape[0]);
-			if constexpr (dims == 1)
-			{
-				return _ptr[i];
-			}
-			else
-			{
-				return tensor_slice<dims - 1>(
-					_ptr + (i * _strides[0]),
-					_shape + 1,
-					_strides + 1
-				);
-			}
+			assert(index < _shape[0]);
+			return tensor_slice<dims - 1>(
+				_ptr + (index * _strides[0]),
+				_shape + 1,
+				_strides + 1
+			);
 		}
-
-		friend class vector_slice;
 	};
+
+	inline slice buffer::as_vector() const
+	{
+		return slice(_ptr.get(), _size);
+	}
+
+	template<uint dims>
+	inline tensor_slice<dims> buffer::as_tensor(const layout<dims>& l) const
+	{
+		return tensor_slice<dims>(_ptr.get(), l.shape().begin(), l.strides().begin());
+	}
+
+	/*************************************************************************************************************************************/
 
 	namespace internal
 	{
@@ -226,7 +274,7 @@ namespace nn
 
 		tensor(const extents& shape) :
 			tensor::tensor_details(shape),
-			tensor::tensor_slice(this->_data, this->_layout)
+			tensor::tensor_slice(this->_data.ptr(), this->_layout.shape().begin(), this->_layout.strides().begin())
 		{}
 
 		tensor(const layout<dims>& l) :
@@ -245,40 +293,6 @@ namespace nn
 		const buffer& data() const { return this->_data; }
 		buffer& data() { return this->_data; }
 	};
-
-
-	class vector_slice : public tensor_slice<1>
-	{
-		static const uint stride = 1;
-
-		uint _size;
-
-	public:
-
-		explicit vector_slice(const buffer& buf) :
-			tensor_slice(buf.ptr(), &_size, &stride),
-			_size((uint)buf.size())
-		{}
-
-		template<uint n>
-		vector_slice(const tensor_slice<n>& slice) :
-			tensor_slice(slice._ptr, &_size, &stride),
-			_size(slice._shape[0] * slice._strides[0])
-		{}
-
-		uint size() const { return _size; }
-	};
-
-	inline vector_slice buffer::as_vector() const
-	{
-		return vector_slice(*this);
-	}
-
-	template<uint dims>
-	inline tensor_slice<dims> buffer::as_tensor(const layout<dims>& l) const
-	{
-		return tensor_slice<dims>(*this, l);
-	}
 
 	/*************************************************************************************************************************************/
 
@@ -354,7 +368,7 @@ namespace nn
 		});
 	}
 
-	inline void tensor_fill(const vector_slice& x, scalar value)
+	inline void tensor_fill(const slice& x, scalar value)
 	{
 		dispatch(x.size(), [&](uint i)
 		{
@@ -363,7 +377,7 @@ namespace nn
 	}
 
 	template<class F, class = std::enable_if_t<std::is_invocable_r_v<scalar, F>>>
-	inline void tensor_fill(const vector_slice& x, const F& f)
+	inline void tensor_fill(const slice& x, const F& f)
 	{
 		dispatch(x.size(), [&](uint i)
 		{
@@ -371,9 +385,10 @@ namespace nn
 		});
 	}
 
-	inline void tensor_zero(const vector_slice& x) { tensor_fill(x, 0.0f); }
+	inline void tensor_zero(const slice& x) { tensor_fill(x, 0.0f); }
 
-	inline void tensor_update(const vector_slice& slice, const std::vector<scalar>& data)
+	template<typename container_type>
+	inline void tensor_update(const slice& slice, const container_type& data)
 	{
 		assert(data.size() == slice.size());
 		std::copy(data.begin(), data.end(), slice.ptr());

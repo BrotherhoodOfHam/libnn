@@ -75,6 +75,8 @@ set(libnn_headers
     include/nn/common.h
     include/nn/tensors.h
 	include/nn/training.h
+	include/nn/optimizers.h
+	include/nn/losses.h
     include/nn/model.h
 )
 
