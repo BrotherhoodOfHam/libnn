@@ -31,7 +31,7 @@ static size_t arg_max(const tensor_slice<1>& v)
 
 /*************************************************************************************************************************************/
 
-trainer::trainer(model& seq, float learning_rate, float momentum) :
+trainer::trainer(model& seq, optimizer_type& opt) :
 	_model(seq),
 	_input_layout(seq.input_shape()),
 	_output_layout(seq.output_shape())
@@ -42,9 +42,9 @@ trainer::trainer(model& seq, float learning_rate, float momentum) :
 		if (p != nullptr)
 		{
 			auto w = p->get_w();
-			_parameters.push_back(parameter(w.p, w.dp, sgd(w.p.size(), learning_rate, momentum)));
+			_parameters.push_back(parameter(w.p, w.dp, opt.for_param(w.p.size())));
 			auto b = p->get_b();
-			_parameters.push_back(parameter(b.p, b.dp, sgd(b.p.size(), learning_rate, momentum)));
+			_parameters.push_back(parameter(b.p, b.dp, opt.for_param(b.p.size())));
 		}
 	}
 }

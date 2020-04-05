@@ -37,13 +37,13 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 	assert(z_batch_test.shape(0) >= 5 * 5);
 	
 	const uint batch_size = z_input.shape(0);
-	const float k = 0.0002f;
-	const float b = 0.5f;
+	const float alpha = 0.0002f;
+	const float beta = 0.5f;
 
 	assert(data.size() % batch_size == 0);
 
-	trainer d_trainer(_d, k, b);
-	trainer g_trainer(_g, k, b);
+	trainer d_trainer(_d, adam(alpha, beta));
+	trainer g_trainer(_g, adam(alpha, beta));
 
 	std::vector<size_t> indices(data.size());
 	std::iota(indices.begin(), indices.end(), 0);

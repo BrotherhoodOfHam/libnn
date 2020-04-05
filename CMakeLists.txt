@@ -88,6 +88,8 @@ set(libnn_sources
     src/training.cpp
     src/model_serializer.cpp
     src/model.cpp
+    src/opt/adam.cpp
+    src/opt/sgd.cpp
 )
 
 add_library(libnn ${libnn_headers} ${libnn_sources})

@@ -232,7 +232,7 @@ namespace nn
 		{
 			assert(index < _shape[0]);
 			return tensor_slice<dims - 1>(
-				_ptr + (index * _strides[0]),
+				_ptr + ((size_t)index * _strides[0]),
 				_shape + 1,
 				_strides + 1
 			);
@@ -287,7 +287,10 @@ namespace nn
 		{}
 
 		tensor(tensor&&) = delete;
-		tensor(const tensor&) = delete;
+		tensor(const tensor& rhs) :
+			tensor::tensor_details(rhs),
+			tensor_slice::tensor_slice(rhs)
+		{}
 
 		const layout<dims>& layout() const { return this->_layout; }
 		const buffer& data() const { return this->_data; }

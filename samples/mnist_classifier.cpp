@@ -76,7 +76,7 @@ int main()
 	classifier.add<dense_layer>(10);
 	classifier.add<activation::sigmoid>();
 
-	trainer t(classifier, 0.01f);
+	trainer t(classifier, adam());
 	t.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
 		30

@@ -19,10 +19,10 @@ namespace nn
 		{
 			buffer param;
 			buffer grad;
-			optimization_function optimize;
+			opt_function optimize;
 
-			parameter(const buffer& p, const buffer& g, optimization_function opt) :
-				param(p), grad(g), optimize(opt)
+			parameter(const buffer& p, const buffer& g, opt_function opt) :
+				param(p), grad(g), optimize(std::move(opt))
 			{}
 		};
 
@@ -35,7 +35,7 @@ namespace nn
 		using data = std::vector<scalar>;
 		using label = uint8_t;
 
-		trainer(model& seq, float learning_rate = 0.01f, float momentum = 0.0f);
+		trainer(model& seq, optimizer_type& opt);
 		~trainer();
 
 		trainer(const trainer&) = delete;
