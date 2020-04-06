@@ -74,7 +74,7 @@ int main()
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);
-	classifier.add<activation::sigmoid>();
+	classifier.add<activation::softmax>();
 
 	trainer t(classifier, adam());
 	t.train(

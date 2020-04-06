@@ -83,10 +83,15 @@ const buffer& activation::softmax::forward(const buffer& _x)
 {
 	auto x = _x.as_vector();
 
+	scalar max = x[0];
+	for (uint i = 0; i < x.size(); i++)
+		if (x[i] > max)
+			max = x[i];
+
 	scalar sum = 0.0f;
 	for (uint i = 0; i < x.size(); i++)
 	{
-		scalar a = std::exp(x[i]);
+		scalar a = std::exp(x[i] - max);
 		sum += a;
 		y[i] = a;
 	}
@@ -99,29 +104,24 @@ const buffer& activation::softmax::forward(const buffer& _x)
 	return y.data();
 }
 
-const buffer& activation::softmax::backward(const buffer& x, const buffer& dy)
+const buffer& activation::softmax::backward(const buffer& x, const buffer& _dy)
 {
-	/*
-	for (size_t j = 0; j < x.length; j++)
+	auto dy = _dy.as_vector();
+	for (uint j = 0; j < x.size(); j++)
 	{
 		float sum = 0.0f;
-		for (size_t i = 0; i < x.length; i++)
+		for (uint i = 0; i < x.size(); i++)
 		{
-			float dydz = (i == j)
+			float dz = (i == j)
 				? y[i] * (1 - y[i])
 				: -y[i] * y[j];
 
-			sum += dy[i] * dydz;
+			sum += dy[i] * dz;
 		}
 		dx[j] = sum;
 	}
-	*/
 
-	// this is a workaround for when the softmax activation is the final node
-	// when computing the p.d. the above method doesn't work with the cost function
-	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
-		return dy;
-	});
+	return dx.data();
 }
 
 /*************************************************************************************************************************************/

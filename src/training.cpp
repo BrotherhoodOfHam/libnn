@@ -137,10 +137,9 @@ void trainer::train(
 				{
 					if (arg_max(prediction[b]) == arg_max(output[b]))
 						correct++;
-
-					for (uint i = 0; i < output.shape(1); i++)
-						loss += std::pow(prediction[b][i] - output[b][i], 2);
 				}
+
+				loss += compute_loss(prediction, output);
 
 				tensor_zero(output);
 			}
@@ -148,7 +147,7 @@ void trainer::train(
 			tensor_update(input[batch_index], x_test[i_sample]);
 			output[batch_index][y_test[i_sample]] = 1;
 		}
-		loss /= (2.0 * x_test.size());
+		loss /= x_test.size();
 
 		std::cout << "testing loss: " << loss
 				<< " | training loss: " << training_loss
@@ -170,11 +169,8 @@ float trainer::train_batch(const buffer& x, const buffer& y)
 	//optimize
 	update_parameters();
 
-	float loss = 0.0f;
-	for (uint b = 0; b < dy.shape(0); b++)
-		for (uint i = 0; i < dy.shape(1); i++)
-			loss += dy[b][i] * dy[b][i];
-	return loss;
+	//training loss
+	return compute_loss(a.as_vector(), y.as_vector());
 }
 
 const buffer& trainer::forward_backwards(const buffer& x, const buffer& t)
@@ -198,14 +194,32 @@ void trainer::train_from_gradient(const buffer& dy)
 
 /*************************************************************************************************************************************/
 
+scalar trainer::compute_loss(const slice& y, const slice& t)
+{
+	scalar loss = 0;
+	dispatch(y.size(), [&](uint i) {
+		// mean squared error
+		//loss += std::pow(y[i] - t[i], 2)/2;
+		// cross-entropy
+		//loss += -t[i] * std::log(y[i]) - (1.0f - t[i]) * std::log(1.0f - y[i]);
+		// categorical cross-entropy
+		loss += -t[i] * std::log(y[i]);
+	});
+	return loss;
+}
+
 void trainer::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
 {
 	auto y = _y.as_vector();
 	auto dy = _dy.as_vector();
 	auto t = _t.as_vector();
-
 	dispatch(dy.size(), [&](uint i) {
-		dy[i] = y[i] - t[i];
+		// mean squared error
+		//dy[i] = y[i] - t[i];
+		// cross-entropy
+		//dy[i] = (y[i] - t[i]) / (y[i] * (1.0f - y[i]));
+		// categorical cross-entropy
+		dy[i] = -t[i] / y[i];
 	});
 }
 

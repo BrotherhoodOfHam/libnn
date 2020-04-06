@@ -56,6 +56,7 @@ namespace nn
 
 	private:
 
+		scalar compute_loss(const slice& y, const slice& t);
 		void loss_derivative(const buffer& y, const buffer& t, buffer& dy);
 	};
 
