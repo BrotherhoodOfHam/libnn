@@ -31,10 +31,11 @@ static size_t arg_max(const tensor_slice<1>& v)
 
 /*************************************************************************************************************************************/
 
-trainer::trainer(model& seq, optimizer_type& opt) :
+trainer::trainer(model& seq, optimizer_type& opt, const loss_function& loss) :
 	_model(seq),
 	_input_layout(seq.input_shape()),
-	_output_layout(seq.output_shape())
+	_output_layout(seq.output_shape()),
+	_loss(loss)
 {
 	for (auto& node : _model)
 	{
@@ -139,7 +140,7 @@ void trainer::train(
 						correct++;
 				}
 
-				loss += compute_loss(prediction, output);
+				loss += _loss(prediction, output);
 
 				tensor_zero(output);
 			}
@@ -163,14 +164,14 @@ float trainer::train_batch(const buffer& x, const buffer& y)
 	auto dy = tensor(_output_layout);
 
 	//backward prop
-	loss_derivative(a, y, dy.data());
+	_loss.grad(a.as_vector(), y.as_vector(), dy.data().as_vector());
 	_model.backward(dy.data(), true);
 
 	//optimize
 	update_parameters();
 
 	//training loss
-	return compute_loss(a.as_vector(), y.as_vector());
+	return _loss(a.as_vector(), y.as_vector());
 }
 
 const buffer& trainer::forward_backwards(const buffer& x, const buffer& t)
@@ -180,7 +181,7 @@ const buffer& trainer::forward_backwards(const buffer& x, const buffer& t)
 	auto dy = tensor(_output_layout);
 
 	//backward prop
-	loss_derivative(y, t, dy.data());
+	_loss.grad(y.as_vector(), t.as_vector(), dy.data().as_vector());
 	return _model.backward(dy.data(), true);
 }
 
@@ -193,35 +194,6 @@ void trainer::train_from_gradient(const buffer& dy)
 }
 
 /*************************************************************************************************************************************/
-
-scalar trainer::compute_loss(const slice& y, const slice& t)
-{
-	scalar loss = 0;
-	dispatch(y.size(), [&](uint i) {
-		// mean squared error
-		//loss += std::pow(y[i] - t[i], 2)/2;
-		// cross-entropy
-		//loss += -t[i] * std::log(y[i]) - (1.0f - t[i]) * std::log(1.0f - y[i]);
-		// categorical cross-entropy
-		loss += -t[i] * std::log(y[i]);
-	});
-	return loss;
-}
-
-void trainer::loss_derivative(const buffer& _y, const buffer& _t, buffer& _dy)
-{
-	auto y = _y.as_vector();
-	auto dy = _dy.as_vector();
-	auto t = _t.as_vector();
-	dispatch(dy.size(), [&](uint i) {
-		// mean squared error
-		//dy[i] = y[i] - t[i];
-		// cross-entropy
-		//dy[i] = (y[i] - t[i]) / (y[i] * (1.0f - y[i]));
-		// categorical cross-entropy
-		dy[i] = -t[i] / y[i];
-	});
-}
 
 void trainer::update_parameters()
 {

@@ -6,6 +6,7 @@
 
 #include "model.h"
 #include "optimizers.h"
+#include "losses.h"
 
 namespace nn
 {
@@ -14,6 +15,7 @@ namespace nn
 		model&    _model;
 		layout<2> _input_layout;
 		layout<2> _output_layout;
+		loss_function _loss;
 
 		struct parameter
 		{
@@ -35,7 +37,7 @@ namespace nn
 		using data = std::vector<scalar>;
 		using label = uint8_t;
 
-		trainer(model& seq, optimizer_type& opt);
+		trainer(model& seq, optimizer_type& opt, const loss_function& loss = categorical_cross_entropy());
 		~trainer();
 
 		trainer(const trainer&) = delete;
@@ -53,11 +55,6 @@ namespace nn
 		void train_from_gradient(const buffer& dy);
 
 		const buffer& forward_backwards(const buffer& x, const buffer& y);
-
-	private:
-
-		scalar compute_loss(const slice& y, const slice& t);
-		void loss_derivative(const buffer& y, const buffer& t, buffer& dy);
 	};
 
 	template<typename func_type, class = std::enable_if_t<std::is_invocable_v<func_type, span<trainer::data>>>>

@@ -42,8 +42,8 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 
 	assert(data.size() % batch_size == 0);
 
-	trainer d_trainer(_d, adam(alpha, beta));
-	trainer g_trainer(_g, adam(alpha, beta));
+	trainer d_trainer(_d, adam(alpha, beta), binary_cross_entropy());
+	trainer g_trainer(_g, adam(alpha, beta), mse());
 
 	std::vector<size_t> indices(data.size());
 	std::iota(indices.begin(), indices.end(), 0);

@@ -88,6 +88,7 @@ set(libnn_sources
     src/training.cpp
     src/model_serializer.cpp
     src/model.cpp
+	src/losses.cpp
     src/opt/adam.cpp
     src/opt/sgd.cpp
 )
