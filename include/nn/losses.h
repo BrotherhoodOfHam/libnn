@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "tensors.h"
+#include "device.h"
 
 namespace nn
 {
 	class loss_function
 	{
-		using fptr = float(*)(const slice & y, const slice & t);
-		using dfptr = void(*)(const slice & y, const slice & t, slice & dy);
+		using fptr = float(*)(context& dc, const vector &y, const vector &t);
+		using dfptr = vector(*)(context& dc, const vector &y, const vector &t);
 
 		fptr _func;
 		dfptr _deriv;
@@ -22,14 +22,14 @@ namespace nn
 			_func(func), _deriv(deriv)
 		{}
 
-		float operator()(const slice& y, const slice& t) const
+		float loss(context& dc, const vector& y, const vector& t) const
 		{
-			return _func(y, t);
+			return _func(dc, y, t);
 		}
 
-		void grad(const slice& y, const slice& t, slice& dy) const
+		vector grad(context& dc, const vector& y, const vector& t) const
 		{
-			_deriv(y, t, dy);
+			return _deriv(dc, y, t);
 		}
 	};
 
@@ -45,23 +45,23 @@ namespace nn
 	{
 	public:
 
-		static float forward(const slice& y, const slice& t);
-		static void backward(const slice& y, const slice& t, slice& dy);
+		static float forward(context& dc, const vector& y, const vector& t);
+		static vector backward(context& dc, const vector& y, const vector& t);
 	};
 
 	class binary_cross_entropy : public basic_loss_function<binary_cross_entropy>
 	{
 	public:
 
-		static float forward(const slice& y, const slice& t);
-		static void backward(const slice& y, const slice& t, slice& dy);
+		static float forward(context& dc, const vector& y, const vector& t);
+		static vector backward(context& dc, const vector& y, const vector& t);
 	};
 
 	class categorical_cross_entropy : public basic_loss_function<categorical_cross_entropy>
 	{
 	public:
 
-		static float forward(const slice& y, const slice& t);
-		static void backward(const slice& y, const slice& t, slice& dy);
+		static float forward(context& dc, const vector& y, const vector& t);
+		static vector backward(context& dc, const vector& y, const vector& t);
 	};
 }

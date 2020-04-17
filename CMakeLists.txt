@@ -2,9 +2,12 @@
 #   libnn
 #################################################################################################
 
-CMAKE_MINIMUM_REQUIRED (VERSION 3.8)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.9 FATAL_ERROR)
 
-project(libnn)
+project(libnn LANGUAGES CXX CUDA)
+
+# vs project folders
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 #################################################################################################
 
@@ -71,31 +74,53 @@ set(libnn_headers
     include/nn/ops/node.h
     include/nn/ops/activations.h
     include/nn/ops/dense.h
-    include/nn/ops/dropout.h
+	include/nn/ops/dropout.h
+	include/nn/ops/debug.h
     include/nn/common.h
     include/nn/tensors.h
 	include/nn/training.h
 	include/nn/optimizers.h
 	include/nn/losses.h
-    include/nn/model.h
+	include/nn/model.h
+	include/nn/device.h
 )
 
 set(libnn_sources
-    src/ops/activations.cpp
-    src/ops/dense.cpp
-    src/ops/dropout.cpp
+    src/ops/activations.cu
+    src/ops/dense.cu
+	src/ops/dropout.cu
+	src/ops/debug.cpp
+
+	src/device/kernels.h
+	src/device/ops.h
+	src/device/ops.cu
+	src/device/allocator.cpp
+	src/device/random.cu
+	src/device/context.cu
+
     src/common.cpp
     src/training.cpp
     src/model_serializer.cpp
     src/model.cpp
-	src/losses.cpp
-    src/opt/adam.cpp
-    src/opt/sgd.cpp
+	src/losses.cu
+
+    src/opt/adam.cu
+    src/opt/sgd.cu
 )
 
 add_library(libnn ${libnn_headers} ${libnn_sources})
-target_include_directories(libnn PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_compile_features(libnn PUBLIC cxx_std_17) # we need c++17 to use parallel algorithms
+target_include_directories(libnn
+	PUBLIC "${PROJECT_SOURCE_DIR}/include"
+	PRIVATE "${PROJECT_SOURCE_DIR}/src"
+)
+#target_compile_features(libnn PUBLIC cxx_std_17) # we need c++17 to use parallel algorithms
+target_compile_features(libnn PUBLIC cxx_std_14)
+set_target_properties(libnn PROPERTIES
+	CUDA_SEPARABLE_COMPILATION ON
+	CUDA_RESOLVE_DEVICE_SYMBOLS ON
+	POSITION_INDEPENDENT_CODE ON
+)
+target_link_libraries(libnn PRIVATE cublas curand)
 
 assign_source_groups(${libnn_headers} ${libnn_sources})
 

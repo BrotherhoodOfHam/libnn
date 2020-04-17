@@ -16,27 +16,30 @@ using namespace cimg_library;
 gan::gan(model& g, model& d) :
 	_g(g), _d(d)
 {
-	assert(node_shape::equals(_g.output_shape(), _d.input_shape()));
-	assert(_d.output_shape()[1] == 1);
+	assert(tensor_shape::equals(_g.output_shape(), _d.input_shape()));
+	assert(_d.output_shape()[0] == 1);
 }
 
-void gan::train(const std::vector<trainer::data>& data, uint epochs)
+void gan::train(const std::vector<trainer::data>& data, uint epochs, uint batch_size)
 {
-	tensor<2> z_input(_g.input_shape());
-	tensor<2> real_input(_d.input_shape());
-	tensor<2> y_d_1(_d.output_shape());  tensor_fill(y_d_1, 0.9f);
-	tensor<2> y_d_0(_d.output_shape());  tensor_fill(y_d_0, 0.0f);
-	tensor<2> y_g(_d.output_shape());    tensor_fill(y_g,   1.0f);
-	
-	std::uniform_real_distribution<double> unif(-1, 1);
+	_dc.set_mode(execution_mode::training);
+	_dc.set_batches(batch_size);
 
+	composite_model gan_model(_g, _d);
+
+	tensor_layout<2> input_layout(batch_size,  _g.input_shape().total_size());
+	tensor_layout<2> img_layout(batch_size,    _g.output_shape().total_size());
+	tensor_layout<2> output_layout(batch_size, _d.output_shape().total_size());
+
+	auto z_input    = _pool.alloc(input_layout);
+	auto real_input = _pool.alloc(img_layout);
+	auto y_d_1      = _pool.alloc(output_layout); _dc.fill(y_d_1, 0.9f);
+	auto y_d_0      = _pool.alloc(output_layout); _dc.fill(y_d_0, 0.0f);
+	auto y_g        = _pool.alloc(output_layout); _dc.fill(y_g,   1.0f);
 	// testing batch
-	tensor<2> z_batch_test(_g.input_shape());
-	thread_local auto rng = new_random_engine();
-	tensor_fill(z_batch_test, [&](){ return (scalar)unif(rng); });
-	assert(z_batch_test.shape(0) >= 5 * 5);
-	
-	const uint batch_size = z_input.shape(0);
+	auto z_test = _pool.alloc(input_layout);
+	_dc.random_uniform(z_test);
+
 	const float alpha = 0.0002f;
 	const float beta = 0.5f;
 
@@ -73,28 +76,35 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 
 			// update batch
 			uint batch_index = i % batch_size;
-			tensor_update(real_input[batch_index], data[indices[i]]);
+			_dc.update(real_input[batch_index], data[indices[i]]);
 			
 			if (batch_index == 0 && i > 0)
 			{
-				//randomize z
-				tensor_fill(z_input, [&]() { return (scalar)unif(rng); });
-
-				d_trainer.train_batch(real_input.data(), y_d_1.data());
-				d_trainer.train_batch(_g.forward(z_input.data()), y_d_0.data());
+				_dc.clear_allocator();
+				auto dy = _dc.alloc(output_layout);
 
 				//randomize z
-				tensor_fill(z_input, [&]() { return (scalar)unif(rng); });
+				_dc.random_uniform(z_input);
 
-				const auto& dy = d_trainer.forward_backwards(_g.forward(z_input.data()), y_g.data());
-				g_trainer.train_from_gradient(dy);
+				//train discriminator on real batch
+				d_trainer.train_batch(real_input, y_d_1, dy);
+
+				//train discriminator on generated batch
+				auto g_output = _g.forward(_dc, z_input.flatten()).reshape(img_layout);
+				d_trainer.train_batch(g_output, y_d_0, dy);
+
+				//randomize z
+				_dc.random_uniform(z_input);
+
+				auto dy2 = d_trainer.forward_backwards(_g.forward(_dc, z_input), y_g);
+				g_trainer.train_gradient(dy2);
 			}
 		}
 
 		std::cout << "(" << data.size() << "/" << data.size() << ") 100%                                       ";
 		std::cout << std::endl;
 		
-		save_generated_images(e, z_batch_test);
+		save_generated_images(e, z_test);
 		_g.serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
 	}
 }
@@ -103,6 +113,8 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs)
 
 void gan::save_generated_images(uint id, const tensor<2>& z_batch)
 {
+	_dc.clear_allocator();
+
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
 
 	const uint scale_factor = 16;
@@ -113,8 +125,10 @@ void gan::save_generated_images(uint id, const tensor<2>& z_batch)
 
 	CImg<float> image(total_wh, total_wh);
 
-	layout<2> img_layout(z_batch.shape(0), 28 * 28);
-	auto g = _g.forward(z_batch.data()).as_tensor(img_layout);
+	tensor_layout<2> img_layout(z_batch.shape(0), 28 * 28);
+	std::vector<scalar> gen_image;
+	auto g = _g.forward(_dc, z_batch).reshape(img_layout);
+	_dc.read(g, gen_image);
 
 	uint batch_index = 0;
 	for (uint y_tile = 0; y_tile < tile_count; y_tile++)
@@ -137,7 +151,7 @@ void gan::save_generated_images(uint id, const tensor<2>& z_batch)
 					image(
 						x + (w * scale_factor) + sub_w,
 						y + (h * scale_factor) + sub_h
-					) = ((g[batch_index][i_g] + 1) / 2) * 255;
+					) = ((gen_image[(size_t)batch_index*g.shape(1) + i_g] + 1) / 2) * 255;
 				}
 			}
 

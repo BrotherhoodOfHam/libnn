@@ -8,13 +8,14 @@
 #include <random>
 #include <chrono>
 
+#include "device/kernels.h"
 #include "nn/training.h"
 
 using namespace nn;
 
 /*************************************************************************************************************************************/
 
-static size_t arg_max(const tensor_slice<1>& v)
+static size_t arg_max(const tensor<1>& v)
 {
 	float max = v[0];
 	uint i_max = 0;
@@ -29,13 +30,70 @@ static size_t arg_max(const tensor_slice<1>& v)
 	return i_max;
 }
 
+static size_t arg_max(const const_span<scalar>& v)
+{
+	float max = v[0];
+	uint i_max = 0;
+	for (uint i = 0; i < v.size(); i++)
+	{
+		if (v[i] > max)
+		{
+			max = v[i];
+			i_max = i;
+		}
+	}
+	return i_max;
+}
+
+template<typename function_type, typename = if_callable<function_type, const const_span<scalar>&, const const_span<scalar>&>>
+void foreach_batch(uint batch_size, uint number_of_classes, const std::vector<trainer::data>& dataset, const std::vector<trainer::label>& labels, const function_type& func)
+{
+	assert(dataset.size() == labels.size());
+	assert((dataset.size() % batch_size) == 0);
+
+	auto rng = new_random_engine();
+
+	std::vector<size_t> indices(dataset.size());
+	std::vector<scalar> x;
+	std::vector<scalar> y;
+
+	std::iota(indices.begin(), indices.end(), 0);
+	std::shuffle(indices.begin(), indices.end(), rng);
+
+	for (size_t i = 0; i < indices.size(); i += batch_size)
+	{
+		x.clear();
+		y.clear();
+
+		for (size_t i_batch = 0; i_batch < batch_size; i_batch++)
+		{
+			size_t i_sample = indices[i + i_batch];
+			const auto& data = dataset[i_sample];
+			auto label = labels[i_sample];
+
+			for (scalar v : data)
+				x.push_back(v);
+
+			if (number_of_classes == 1)
+			{
+				y.push_back((scalar)label);
+			}
+			else
+			{
+				// one-hot encoding
+				for (uint i = 0; i < number_of_classes; i++)
+					y.push_back(i == label ? 1 : 0);
+			}
+		}
+
+		func(x, y);
+	}
+}
+
 /*************************************************************************************************************************************/
 
 trainer::trainer(model& seq, optimizer_type& opt, const loss_function& loss) :
-	_model(seq),
-	_input_layout(seq.input_shape()),
-	_output_layout(seq.output_shape()),
-	_loss(loss)
+	_model(seq), _loss(loss)
 {
 	for (auto& node : _model)
 	{
@@ -59,30 +117,21 @@ void trainer::train(
 	const std::vector<label>& y_train,
 	const std::vector<data>&  x_test,
 	const std::vector<label>& y_test,
-	size_t       epochs
+	size_t       epochs,
+	uint         batch_size
 )
 {
-	uint batch_size = _input_layout.shape(0);
-
 	assert(x_train.size() % batch_size == 0);
 	assert(x_test.size() % batch_size == 0);
 	assert(x_train.size() == y_train.size());
 	assert(x_test.size() == y_test.size());
 
-	std::vector<size_t> indices(x_train.size());
-	std::iota(indices.begin(), indices.end(), 0);
-
-	tensor<2> input(_input_layout);
-	tensor<2> output(_output_layout);
-
-	tensor_zero(output);
+	uint input_size  = _model.input_shape().total_size();
+	uint output_size = _model.output_shape().total_size();
 
 	for (size_t ep = 0; ep < epochs; ep++)
 	{
 		std::cout << time_stamp << " epoch " << ep << ":" << std::endl;
-
-		auto rng = new_random_engine();
-		std::shuffle(indices.begin(), indices.end(), rng);
 
 		auto first = std::chrono::system_clock::now();
 		auto last = first;
@@ -90,105 +139,121 @@ void trainer::train(
 		uint i_iters = 0;
 		float training_loss = 0.0f;
 
-		for (size_t i_sample : indices)
+		_dc.set_mode(execution_mode::training);
+		_dc.set_batches(batch_size);
+
+		uint batch_count = (uint)(x_train.size() / batch_size);
+
+		foreach_batch(batch_size, output_size, x_train, y_train, [&](const_span<scalar> inp, const_span<scalar> out)
 		{
 			auto t = std::chrono::system_clock::now();
 			if ((t - last) > std::chrono::seconds(1))
 			{
-				std::cout << "(" << i_count << "/" << x_train.size() << ") ";
-				std::cout << std::round(1000.0f * (float)i_count / x_train.size()) / 10 << "% | "
-					      << i_iters << "it/s                            \r";
+				std::cout << "(" << i_count << "/" << batch_count << ") ";
+				std::cout << std::round(1000.0f * (float)i_count / batch_count) / 10 << "% | " << i_iters << "it/s                            \r";
 				last = t;
 				i_iters = 0;
 			}
 
-			uint batch_index = i_count % batch_size;
+			_dc.clear_allocator();
 
-			if ((batch_index == 0) && (i_count > 0))
-			{
-				//training
-				training_loss += train_batch(input.data(), output.data());
+			auto x  = _dc.batch_alloc(input_size);
+			auto y  = _dc.batch_alloc(output_size);
 
-				tensor_zero(output);
-			}
+			_dc.update(x, inp);
+			_dc.update(y, out);
 
-			tensor_update(input[batch_index], x_train[i_sample]);
-			output[batch_index][y_train[i_sample]] = 1;
+			//training
+			training_loss += train_batch(x, y);
 
 			i_count++;
 			i_iters++;
-		}
+		});
 
-		std::cout << "(" << i_count << "/" << x_train.size() << ") 100%";
+		std::cout << "(" << i_count << "/" << batch_count << ") 100%";
 		std::cout << std::endl;
 
 		training_loss /= x_train.size();
 		double loss = 0.0;
 		uint correct = 0;
 
-		for (uint i_sample = 0; i_sample < x_test.size(); i_sample++)
+		_dc.set_mode(execution_mode::execute);
+		_dc.set_batches(batch_size);
+
+		std::vector<scalar> pred_buf;
+
+		foreach_batch(batch_size, output_size, x_test, y_test, [&](const_span<scalar> input, const_span<scalar> target)
 		{
-			uint batch_index = i_sample % batch_size;
+			_dc.clear_allocator();
 
-			if ((batch_index == 0) && (i_sample > 0))
+			auto t = _dc.batch_alloc(output_size);
+			auto x = _dc.batch_alloc(input_size);
+
+			_dc.update(t, target);
+			_dc.update(x, input);
+
+			auto a = _model.forward(_dc, x);
+
+			// calculate loss
+			loss += _loss.loss(_dc, a, t);
+
+			// direct comparison
+			_dc.read(a, pred_buf);
+			tensor<2> h_prediction(pred_buf.data(), t.layout());
+			tensor<2> h_target(const_cast<scalar*>(target.begin()), t.layout());
+
+			for (uint b = 0; b < batch_size; b++)
 			{
-				auto prediction = _model.forward(input.data()).as_tensor(output.layout());
-
-				for (uint b = 0; b < output.shape(0); b++)
+				if (arg_max(h_prediction[b]) == arg_max(h_target[b]))
 				{
-					if (arg_max(prediction[b]) == arg_max(output[b]))
-						correct++;
+					correct++;
 				}
-
-				loss += _loss(prediction, output);
-
-				tensor_zero(output);
 			}
+		});
 
-			tensor_update(input[batch_index], x_test[i_sample]);
-			output[batch_index][y_test[i_sample]] = 1;
-		}
 		loss /= x_test.size();
 
-		std::cout << "testing loss: " << loss
-				<< " | training loss: " << training_loss
-				<< " | accuracy: (" << correct << " / " << x_test.size() << ")" << std::endl;
+		std::cout << "training loss: " << training_loss
+			<< " | loss: " << loss
+			<< " | accuracy: " << ((float)correct / x_test.size()) << std::endl;
 	}
+
+	_dc.clear_allocator();
 }
 
-float trainer::train_batch(const buffer& x, const buffer& y)
+float trainer::train_batch(const tensor<2>& x, const tensor<2>& y)
 {
+	_dc.set_mode(execution_mode::training);
+
 	//forward prop
-	const auto& a = _model.forward(x, true);
-
-	auto dy = tensor(_output_layout);
-
+	const auto& a = _model.forward(_dc, x);
+	
 	//backward prop
-	_loss.grad(a.as_vector(), y.as_vector(), dy.data().as_vector());
-	_model.backward(dy.data(), true);
+	_model.backward(_dc, _loss.grad(_dc, a, y));
 
 	//optimize
 	update_parameters();
 
 	//training loss
-	return _loss(a.as_vector(), y.as_vector());
+	return _loss.loss(_dc, a, y);
 }
 
-const buffer& trainer::forward_backwards(const buffer& x, const buffer& t)
+vector trainer::forward_backwards(const vector& x, const vector& t)
 {
+	_dc.clear_allocator();
+	_dc.set_mode(execution_mode::training);
+
 	//forward prop
-	const buffer& y = _model.forward(x);
-	auto dy = tensor(_output_layout);
-
+	auto y = _model.forward(_dc, x);
 	//backward prop
-	_loss.grad(y.as_vector(), t.as_vector(), dy.data().as_vector());
-	return _model.backward(dy.data(), true);
+	return _model.backward(_dc, _loss.grad(_dc, y, t));
 }
 
-void trainer::train_from_gradient(const buffer& dy)
+void trainer::train_gradient(const vector& dy)
 {
 	//backward prop
-	_model.backward(dy, true);
+	_dc.set_mode(execution_mode::training);
+	_model.backward(_dc, dy);
 	//optimize
 	update_parameters();
 }

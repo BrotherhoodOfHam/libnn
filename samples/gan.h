@@ -11,13 +11,16 @@ namespace nn
 {
 	class gan
 	{
+		pool_allocator _pool;
+		context _dc;
+
 		model& _g;
 		model& _d;
 
 	public:
 
 		gan(model& g, model& d);
-		void train(const std::vector<trainer::data>& data, uint epochs);
+		void train(const std::vector<trainer::data>& data, uint epochs, uint batch_size);
 
 	private:
 

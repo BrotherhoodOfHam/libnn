@@ -2,6 +2,9 @@
 
 #include <chrono>
 #include <iomanip>
+#include <sstream>
+
+#include "nn/tensors.h"
 
 /*************************************************************************************************************************************/
 
@@ -23,5 +26,16 @@ std::ostream& nn::time_stamp(std::ostream& out)
 		<< setfill('0') << setw(2) << s << "]";
 	return out;
 }
+
+inline std::string make_message(nn::uint expected_dims, nn::uint dims)
+{
+	std::stringstream ss;
+	ss << "Expected shape of size " << expected_dims << " was given size " << dims;
+	return ss.str();
+}
+
+nn::tensor_layout_error::tensor_layout_error(uint expected_dims, uint dims) :
+	runtime_error(make_message(expected_dims, dims))
+{}
 
 /*************************************************************************************************************************************/

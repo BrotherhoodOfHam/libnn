@@ -7,13 +7,14 @@
 #include "nn/ops/activations.h"
 #include "nn/ops/dense.h"
 #include "nn/ops/dropout.h"
+#include "nn/ops/debug.h"
 #include "nn/training.h"
 
 using namespace nn;
 
 /*************************************************************************************************************************************/
 
-struct dataset
+struct ds
 {
 	std::vector<trainer::data> x_train, x_test;
 	std::vector<trainer::label> y_train, y_test;
@@ -21,7 +22,8 @@ struct dataset
 
 void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_t>& image, bool normalize_negative = false)
 {
-	auto& data = dataset.emplace_back(image.size());
+	dataset.emplace_back(image.size());
+	auto& data = dataset.back();
 	for (size_t i = 0; i < data.size(); i++)
 	{
 		data[i] = (float)image[i] / 255.0f;
@@ -30,7 +32,7 @@ void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_
 	}
 }
 
-dataset load_mnist()
+ds load_mnist()
 {
 	using namespace std::chrono;
 	using clock = std::chrono::high_resolution_clock;
@@ -38,7 +40,7 @@ dataset load_mnist()
 	std::cout << "Loading MNIST" << std::endl;
 	auto t = clock::now();
 
-	dataset d;
+	ds d;
 
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
 	d.x_train.reserve(dataset.training_images.size());
@@ -65,12 +67,12 @@ dataset load_mnist()
 
 int main()
 {
-	dataset ds = load_mnist();
+	ds ds = load_mnist();
 
-	model classifier(28*28, 100);
+	model classifier(28*28);
 	classifier.add<dense_layer>(100);
 	classifier.add<activation::relu>();
-	classifier.add<dropout>(0.2f);
+	//classifier.add<dropout>(0.2f);
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);
@@ -79,7 +81,7 @@ int main()
 	trainer t(classifier, adam());
 	t.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
-		30
+		30, 100
 	);
 
 	classifier.serialize("classifier.bin");

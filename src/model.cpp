@@ -8,34 +8,31 @@ using namespace nn;
 
 /***********************************************************************************************************************/
 
-const buffer& model::forward(const buffer& x, bool is_training)
+vector model::forward(context& dc, const vector& x)
 {
-	auto a = std::cref(x);
 	_activations.clear();
-	_activations.push_back(a);
+	_activations.push_back(x);
 
 	for (auto& node : _nodes)
 	{
-		node->set_state(is_training);
-		a = node->forward(a);
-		_activations.push_back(a);
+		const vector& y = node->forward(dc, _activations.back());
+		_activations.push_back(y);
 	}
 
 	return _activations.back();
 }
 
-const buffer& model::backward(const buffer& dy, bool is_training)
+vector model::backward(context& dc, const vector& dy)
 {
-	auto d = std::ref(dy);
+	vector dv = dy;
 
 	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
 	{
 		auto node = _nodes[i].get();
-		node->set_state(is_training);
-		d = node->backward(_activations[i], d);
+		dv = node->backward(dc, _activations[i], dv);
 	}
 
-	return d;
+	return dv;
 }
 
 /***********************************************************************************************************************/

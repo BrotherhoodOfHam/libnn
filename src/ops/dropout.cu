@@ -2,54 +2,60 @@
 	Dropout regularization node
 */
 
+#include "device/kernels.h"
+#include "device/ops.h"
 #include "nn/ops/dropout.h"
 
 using namespace nn;
 
 /*************************************************************************************************************************************/
 
-dropout::dropout(node_shape input_shape, float probability) :
-	y(input_shape.total()),
-	dx(input_shape.total()),
-	p(input_shape.total()),
+dropout::dropout(tensor_shape input_shape, float probability) :
 	_probability(probability),
-	_shape(input_shape)
+	uniform_node(input_shape)
 {}
 
-const buffer& dropout::forward(const buffer& _x)
+vector dropout::forward(context& dc, const vector& x)
 {
-	if (is_training())
+	if (dc.is_training())
 	{
-		auto x = _x.as_tensor(y.layout());
-
+		/*
 		auto rng = new_random_engine();
-
 		dispatch(y.layout(), [&](uint i) {
 			std::bernoulli_distribution dist(_probability);
 			p[i] = dist(rng) ? 0.0f : 1.0f;
 			y[i] = p[i] * x[i];
 		});
+		*/
 
-		return y.data();
+		// generate random dropout values
+		_dropout = dc.alloc(x.size());
+		_rng.random_bernoulli(_dropout, 1.0f - _probability);
+
+		auto y = dc.alloc(x.size());
+		vector_mul(y, _dropout, x);
+		return y;
 	}
 
-	return _x;
+	return x;
 }
 
-const buffer& dropout::backward(const buffer& x, const buffer& _dy)
+vector dropout::backward(context& dc, const vector& x, const vector& dy)
 {
-	if (is_training())
+	if (dc.is_training())
 	{
-		auto dy = _dy.as_tensor(y.layout());
-
+		/*
 		dispatch(y.layout(), [&](uint i) {
 			dx[i] = p[i] * dy[i];
 		});
+		*/
 
-		return dx.data();
+		auto dx = dc.alloc(x.size());
+		vector_mul(dx, _dropout, dy);
+		return dx;
 	}
 
-	return _dy;
+	return dy;
 }
 
 /*************************************************************************************************************************************/

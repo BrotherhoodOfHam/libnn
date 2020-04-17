@@ -4,17 +4,30 @@
 
 #pragma once
 
+#include "device.h"
 #include "model.h"
 #include "optimizers.h"
 #include "losses.h"
 
 namespace nn
 {
-	class trainer
+	class trainer_routine
 	{
-		model&    _model;
-		layout<2> _input_layout;
-		layout<2> _output_layout;
+	public:
+
+		using data = std::vector<scalar>;
+		using label = uint8_t;
+
+		virtual void iterate(span<data> x, span<label> y)
+		{
+
+		}
+	};
+
+	class trainer : public trainer_routine
+	{
+		context       _dc;
+		model&        _model;
 		loss_function _loss;
 
 		struct parameter
@@ -23,8 +36,8 @@ namespace nn
 			buffer grad;
 			opt_function optimize;
 
-			parameter(const buffer& p, const buffer& g, opt_function opt) :
-				param(p), grad(g), optimize(std::move(opt))
+			parameter(const buffer& _param, const buffer& _grad, opt_function opt) :
+				param(_param), grad(_grad), optimize(std::move(opt))
 			{}
 		};
 
@@ -47,19 +60,14 @@ namespace nn
 			const std::vector<label>& y_train,
 			const std::vector<data>& x_test,
 			const std::vector<label>& y_test,
-			size_t epochs
+			size_t epochs,
+			uint batch_size
 		);
 
-		float train_batch(const buffer& x, const buffer& y);
+		float train_batch(const tensor<2>& x, const tensor<2>& y);
 
-		void train_from_gradient(const buffer& dy);
+		void train_gradient(const vector& dy);
 
-		const buffer& forward_backwards(const buffer& x, const buffer& y);
+		vector forward_backwards(const vector& x, const vector& y);
 	};
-
-	template<typename func_type, class = std::enable_if_t<std::is_invocable_v<func_type, span<trainer::data>>>>
-	void foreach_training_batch(const std::vector<trainer::data>& data, uint batch_size, const func_type& callback)
-	{
-
-	}
 }

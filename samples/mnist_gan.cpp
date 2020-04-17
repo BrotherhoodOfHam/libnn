@@ -15,7 +15,8 @@ using namespace nn;
 
 void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_t>& image, bool normalize_negative = false)
 {
-	auto& data = dataset.emplace_back(image.size());
+	dataset.emplace_back(image.size());
+	auto& data = dataset.back();
 	for (size_t i = 0; i < data.size(); i++)
 	{
 		data[i] = (float)image[i] / 255.0f;
@@ -26,11 +27,11 @@ void process_image(std::vector<trainer::data>& dataset, const std::vector<uint8_
 
 int main()
 {
-	uint batch_size = 25;
 	uint z_size = 10;
 	uint img_size = 28 * 28;
+	uint batch_size = 25;
 
-	model g(z_size, batch_size);
+	model g(z_size);
 	g.add<dense_layer>(256);
 	g.add<activation::leaky_relu>(0.2f);
 	g.add<dense_layer>(512);
@@ -40,7 +41,7 @@ int main()
 	g.add<dense_layer>(img_size);
 	g.add<activation::tanh>();
 
-	model d(img_size, batch_size);
+	model d(img_size);
 	d.add<dense_layer>(1024);
 	d.add<activation::leaky_relu>(0.2f);
 	d.add<dropout>(0.3f);
@@ -65,7 +66,7 @@ int main()
 	for (const auto& image : dataset.training_images)
 		process_image(real_data, image, true);
 
-	gn.train(real_data, 300);
+	gn.train(real_data, 300, batch_size);
 
 	return 0;
 }

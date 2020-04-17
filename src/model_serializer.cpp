@@ -5,7 +5,6 @@
 #include <fstream>
 
 #include "nn/model.h"
-#include "nn/ops/dense.h"
 
 using namespace nn;
 
@@ -40,6 +39,7 @@ bool model::serialize(const std::string& filename)
 	}
 
 	std::vector<parameterised_node*> layers;
+	std::vector<scalar> params;
 	for (auto& node : _nodes)
 	{
 		auto d = dynamic_cast<parameterised_node*>(node.get());
@@ -56,6 +56,7 @@ bool model::serialize(const std::string& filename)
 
 		write<uint>(f, w.size());
 		write<uint>(f, b.size());
+
 		write<uint>(f, (uint)layer->input_shape().size());
 		for (uint i : layer->input_shape())
 			write<uint>(f, i);
@@ -63,10 +64,12 @@ bool model::serialize(const std::string& filename)
 		write<uint>(f, (uint)layer->output_shape().size());
 		for (uint i : layer->output_shape())
 			write<uint>(f, i);
-		
-
-		f.write((const char*)w.ptr(), (std::streamoff)sizeof(scalar) * w.size());
-		f.write((const char*)b.ptr(), (std::streamoff)sizeof(scalar) * b.size());
+		tensor_layout<1>(2);
+		auto& dc = context::get_global();
+		dc.read(w.as_vector(), params);
+		f.write((const char*)params.data(), (std::streamoff)sizeof(scalar) * params.size());
+		dc.read(b.as_vector(), params);
+		f.write((const char*)params.data(), (std::streamoff)sizeof(scalar) * params.size());
 	}
 
 	return true;

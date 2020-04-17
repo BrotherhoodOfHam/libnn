@@ -5,11 +5,13 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <iostream>
 #include <iomanip>
 #include <chrono>
 #include <random>
 #include <cassert>
+#include <functional>
 
 namespace nn
 {
@@ -24,6 +26,23 @@ namespace nn
 		return std::default_random_engine(std::random_device()());
 	}
 
+	template<class T>
+	class weak_ptr
+	{
+		T* _ptr;
+
+	public:
+
+		inline weak_ptr() : _ptr(nullptr) {}
+		inline weak_ptr(T* ptr) : _ptr(ptr) {}
+
+		inline T* get() const { return _ptr; }
+		inline T* operator->() const { return _ptr; }
+	};
+
+	/*
+		Container span
+	*/
 	template<typename type>
 	class span
 	{
@@ -34,7 +53,7 @@ namespace nn
 
 		using value_type = type;
 		using reference = type&;
-		using const_reference = const type&;
+		using const_reference = const type&; 
 		using size_type = size_t;
 
 		using iterator = type*;
@@ -42,6 +61,29 @@ namespace nn
 
 		span(type* begin, type* end) :
 			_begin(begin), _end(end)
+		{}
+
+		span(const std::initializer_list<type>& values) :
+			span(values.begin(), values.end())
+		{}
+		span(std::initializer_list<type>& values) :
+			span(values.begin(), values.end())
+		{}
+
+		span(const std::vector<std::remove_const_t<type>>& values) :
+			span(values.data(), values.data() + values.size())
+		{}
+		span(std::vector<type>& values) :
+			span(values.data(), values.data() + values.size())
+		{}
+
+		template<size_t n>
+		span(const std::array<std::remove_const_t<type>, n>& values) :
+			span(values.data(), values.data() + n)
+		{}
+		template<size_t n>
+		span(std::array<type, n>& values) :
+			span(values.data(), values.data() + n)
 		{}
 
 		reference at(size_t i)
@@ -66,5 +108,57 @@ namespace nn
 
 		reference operator[](size_type i) { return at(i); }
 		const_reference operator[](size_type i) const { return at(i); }
+	};
+
+	template<typename type>
+	using const_span = span<const type>;
+
+	/*
+		Utils
+	*/
+
+	template <typename F, typename... Args>
+	struct is_callable :
+		std::is_constructible<
+		std::function<void(Args ...)>,
+		std::reference_wrapper<typename std::remove_reference<F>::type>
+		>
+	{};
+
+	template<typename function_type, typename ... args_type>
+	using if_callable = std::enable_if_t<is_callable<function_type, args_type...>::value, function_type>;
+
+	class counting_iterator
+	{
+	private:
+
+		uint count;
+
+	public:
+
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = uint;
+		using difference_type = int;
+		using pointer = uint;
+		using reference = uint;
+
+		counting_iterator(uint c = 0) : count(c) {}
+		counting_iterator(const counting_iterator& other) : count(other.count) {}
+
+		//Arithmetic operations
+		counting_iterator& operator++() { count++; return *this; }
+		counting_iterator operator++(int) { counting_iterator tmp(*this); operator++(); return tmp; }
+
+		uint operator-(counting_iterator s) const { return (count - s.count); }
+		uint operator+(counting_iterator s) const { return (count + s.count); }
+		counting_iterator& operator+=(uint s) { count += s; return *this; }
+		counting_iterator& operator-=(uint s) { count -= s; return *this; }
+
+		//Relational operations
+		bool operator==(const counting_iterator& rhs) const { return count == rhs.count; }
+		bool operator!=(const counting_iterator& rhs) const { return count != rhs.count; }
+
+		//Accessor
+		uint operator*() { return count; }
 	};
 }

@@ -4,35 +4,40 @@
 
 #include <random>
 
+#include "device/kernels.h"
+#include "device/ops.h"
 #include "nn/ops/dense.h"
 
 using namespace nn;
 
 /*************************************************************************************************************************************/
 
-dense_layer::dense_layer(node_shape input_shape, size_t layer_size) :
-	w(layer_size, input_shape[1]), dw(layer_size, input_shape[1]),
-	b(layer_size), db(layer_size),
-	y(input_shape[0], layer_size), dx(input_shape[0], input_shape[1])
+dense_layer::dense_layer(tensor_shape input_shape, uint layer_size) :
+	_input(input_shape), _output(layer_size),
+	_w(layer_size, input_shape[0]),
+	_b(layer_size)
 {
-	assert(input_shape.size() == 2);
-	
-	auto rng = new_random_engine();
-	std::normal_distribution<float> dist(0, 1);
-	const float sqrtn = std::sqrt((float)input_shape[1]);
+	const float sqrtn = std::sqrt((float)input_shape[0]);
 
-	for (uint j = 0; j < w.shape(0); j++)
-		for (uint i = 0; i < w.shape(1); i++)
-			w[j][i] = dist(rng) / sqrtn;
-
-	for (uint i = 0; i < b.size(); i++)
-		b[i] = 0.0f;
+	auto& dc = context::get_global();
+	dc.zero(_b.v());
+	dc.zero(_b.dv());
+	dc.zero(_w.dv());
+	dc.random_normal(_w.v(), 1.0f / sqrtn);
+	dc.sync();
 }
 
-const buffer& dense_layer::forward(const buffer& _x)
+vector dense_layer::forward(context& dc, const vector& _x)
 {
-	auto x = _x.as_tensor(dx.layout());
-	
+	auto x = dc.to_batched(_x, _input);
+	auto y = dc.batch_alloc(_output);
+
+	matrix_set_rows(y, _b.v());
+	matrix_mul(y, x, _w.v(), matrix_flag::accumulate | matrix_flag::transpose_B);
+
+	return y;
+
+	/*
 	//for each row:
 	//y = w.x + b
 	dispatch(y.layout(), [&](uint n, uint j) {
@@ -45,17 +50,35 @@ const buffer& dense_layer::forward(const buffer& _x)
 	});
 
 	return y.data();
+	*/
 }
 
-const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
+vector dense_layer::backward(context& dc, const vector& _x, const vector& _dy)
 {
-	auto x = _x.as_tensor(dx.layout());
-	auto dy = _dy.as_tensor(y.layout());
+	auto x = dc.to_batched(_x, _input);
+	auto dy = dc.to_batched(_dy, _output);
+	auto dx = dc.batch_alloc(_input);
 
+	tensor<2> dw = _w.dv();
+	vector    db = _b.dv();
+
+	// compute partial derivatives w.r.t weights
+	// δw = δy^T * x  (outer product)
+	matrix_mul(dw, dy, x, matrix_flag::transpose_A);
+
+	// compute partial derivatives w.r.t biases
+	// δb = δy
+	matrix_sum_rows(db, dy);
+
+	// δx = δy * w^T 
+	matrix_mul(dx, dy, _w.v());
+
+	return dx;
+
+	/*
 	// δ/δy = partial derivative of loss w.r.t to output
 	// the goal is to find the derivatives w.r.t to parameters: δw, δb, δx
-
-	const uint batch_size = x.shape(0);
+	const uint batch_size = dc.batch_size();
 
 	// compute partial derivatives w.r.t biases
 	dispatch(b.layout(), [&](uint i) {
@@ -85,6 +108,7 @@ const buffer& dense_layer::backward(const buffer& _x, const buffer& _dy)
 	});
 
 	return dx.data();
+	*/
 }
 
 /*************************************************************************************************************************************/

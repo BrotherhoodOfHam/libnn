@@ -71,6 +71,9 @@ namespace nn
 	*/
 	class sgd : public optimizer_type
 	{
+		struct function;
+		struct function_with_momentum;
+
 		float _k;
 		float _m;
 
@@ -86,6 +89,8 @@ namespace nn
 	*/
 	class adam : public optimizer_type
 	{
+		struct function;
+
 		float _alpha;
 		float _beta1;
 		float _beta2;

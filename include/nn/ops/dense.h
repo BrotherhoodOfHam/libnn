@@ -10,21 +10,21 @@ namespace nn
 {
 	class dense_layer final : public parameterised_node
 	{
-		tensor<2> w, dw;
-		tensor<1> b, db;
-		tensor<2> y, dx;
+		tensor_layout<1> _input, _output;
+		variable<2> _w;
+		variable<1> _b;
 
 	public:
 
-		dense_layer(node_shape input_shape, size_t layer_size);
+		dense_layer(tensor_shape input_shape, uint layer_size);
 
-		extents input_shape() const override { return dx.shape(); }
-		extents output_shape() const override { return y.shape(); }
+		tensor_shape input_shape() const override { return _input.shape(); }
+		tensor_shape output_shape() const override { return _output.shape(); }
 
-		const buffer& forward(const buffer& x) override;
-		const buffer& backward(const buffer& x, const buffer& dy) override;
+		vector forward(context& dc, const vector& x) override;
+		vector backward(context& dc, const vector& x, const vector& dy) override;
 
-		node_parameter get_w() const override { return node_parameter{ w.data(), dw.data() }; }
-		node_parameter get_b() const override { return node_parameter{ b.data(), db.data() }; }
+		node_parameter get_w() const override { return _w.as_param(); }
+		node_parameter get_b() const override { return _b.as_param(); }
 	};
 }
