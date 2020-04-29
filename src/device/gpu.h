@@ -1,5 +1,7 @@
 /*
-    Helper kernels
+    GPU header
+
+    contains definitions for CUDA and some helper functions
 */
 
 #pragma once
@@ -24,6 +26,7 @@ namespace nn
     inline uint global_index() { return -1; }
 #endif
 
+    /*
     template<scalar(*func)(scalar)>
     __global__ void map_kernel(uint n, const scalar* input, scalar* output)
     {
@@ -35,7 +38,7 @@ namespace nn
     }
 
     template<scalar(*func)(scalar)>
-    inline vector map_vector(context& dc, const vector& x)
+    inline vector map_vector(scope& dc, const vector& x)
     {
         auto y = dc.alloc(x.size());
 
@@ -46,6 +49,7 @@ namespace nn
 
         return y;
     }
+    */
 
     template<typename error_type>
     inline void check(error_type error)
@@ -105,5 +109,14 @@ namespace nn
     {
         std::cout << msg << std::endl;
         debug_print(t);
+    }
+
+    template<typename ... fmt_args>
+    inline void debug_printf(const char* fmt, fmt_args&& ... args)
+    {
+        if (device::is_debug())
+        {
+            printf(fmt, args...);
+        }
     }
 }

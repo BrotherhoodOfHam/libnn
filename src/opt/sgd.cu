@@ -2,7 +2,7 @@
 	Implementation of Stochastic gradient descent algorithm 
 */
 
-#include "device/kernels.h"
+#include "device/gpu.h"
 #include "nn/optimizers.h"
 
 using namespace nn;
@@ -60,7 +60,7 @@ struct sgd::function_with_momentum : public opt_function::state
 		_k(k), _m(m), _gradient(param_size)
 	{
 		//tensor_zero(_gradient.as_vector());
-		auto& dc = context::get_global();
+		auto& dc = device::get();
 		dc.zero(_gradient.as_vector());
 	}
 

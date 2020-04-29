@@ -9,17 +9,18 @@
 
 namespace nn
 {
-	class gan
+	/*
+		GAN trainer
+	*/
+	class GAN
 	{
-		pool_allocator _pool;
-		context _dc;
-
-		model& _g;
-		model& _d;
+		model&  _g;
+		model&  _d;
+		pool_allocator _constants;
 
 	public:
 
-		gan(model& g, model& d);
+		GAN(model& g, model& d);
 		void train(const std::vector<trainer::data>& data, uint epochs, uint batch_size);
 
 	private:

@@ -21,8 +21,8 @@ namespace nn
 		tensor_shape input_shape() const override { return _input.shape(); }
 		tensor_shape output_shape() const override { return _output.shape(); }
 
-		vector forward(context& dc, const vector& x) override;
-		vector backward(context& dc, const vector& x, const vector& dy) override;
+		vector forward(scope& dc, const vector& x) override;
+		vector backward(scope& dc, const vector& x, const vector& dy) override;
 
 		void get_parameters(std::vector<node_parameter>& parameter_list) const override
 		{

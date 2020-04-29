@@ -12,6 +12,10 @@ class curandGenerator_st;
 
 namespace nn
 {
+    /*************************************************************************************************************************************/
+
+    class device;
+
     struct device_deleter
     {
         void operator()(byte* ptr) const noexcept;
@@ -19,6 +23,9 @@ namespace nn
 
     using device_ptr = std::unique_ptr<byte, device_deleter>;
 
+    /*
+        Simple device buffer
+    */
     class buffer
     {
         std::shared_ptr<scalar> _ptr;
@@ -41,7 +48,11 @@ namespace nn
         vector as_vector() const { return vector(_ptr.get(), tensor_layout<1>(_size)); }
     };
 
+    /*
+        Simple pool allocator
 
+        Allocations are never freed but instead compacted
+    */
     class pool_allocator
     {
         struct chunk
@@ -85,10 +96,12 @@ namespace nn
         }
     };
 
+    /*************************************************************************************************************************************/
+
     /*
         Accelerated random number generator
     */
-    class random_generator
+    class rng
     {
         curandGenerator_st* _prng;
 
@@ -96,9 +109,9 @@ namespace nn
 
         using seed_type = size_t;
 
-        random_generator();
-        random_generator(seed_type seed);
-        ~random_generator();
+        rng();
+        rng(seed_type seed);
+        ~rng();
 
         void seed(seed_type seed);
 
@@ -107,47 +120,92 @@ namespace nn
         void random_bernoulli(vector x, float probability);
     };
 
+    /*
+        Stateless functions for manipulating vectors and tensors
+    */
+    class ops
+    {
+    public:
+
+        // Flag usage depends on op function
+        enum flag
+        {
+            transpose_A = 1,    // transpose the first arg
+            transpose_B = 2,    // transpose the second arg
+            accumulate  = 4     // accumulate rather than assign
+        };
+
+        // Copying between host and device
+        void update(vector x, const const_span<scalar>& values);
+        void read(vector x, std::vector<scalar>& out);
+
+        // Basic ops
+        void zero(vector x);
+        void fill(vector x, scalar value);
+
+        /*
+            Linear algebra
+        */
+
+        // c[i] = a[i] * b[i]
+        void vector_mul(vector& c, const vector& a, const vector& b);
+        // c[i] = a[i] + b[i]
+        void vector_add(vector& c, const vector& a, const vector& b);
+        // c[i] = a[i] - b[i]
+        void vector_sub(vector& c, const vector& a, const vector& b);
+        // sum += a[i] for all i
+        scalar vector_sum(const vector& a);
+
+        // c[i,k] = a[i,j] * b[j,k]
+        void matrix_mul(tensor<2>& c, const tensor<2>& a, const tensor<2>& b, flag flags = flag(0));
+        // m[k,i] = a[i] for all k
+        void matrix_set_rows(tensor<2>& m, const vector& a);
+        // sum[i] += m[k,i] for all k
+        void matrix_sum_rows(vector& sum, const tensor<2>& m);
+    };
+
+    inline ops::flag operator|(ops::flag a, ops::flag b) { return ops::flag((int)a | (int)b); }
+    inline bool operator&(ops::flag a, ops::flag b) { return ((int)a & (int)b) != 0; }
+
+    /*************************************************************************************************************************************/
+
     enum class execution_mode
     {
-        execute  = 0,
+        execute = 0,
         training = 1
     };
 
     /*
-        Device context
+        Device variable scope.
+
+        Allows temporary memory allocation. When the scope is destroyed the memory should not be accessed.
     */
-    class context
+    class scope : public ops
     {
-        pool_allocator           _pool;
-        mutable random_generator _rng;
-        uint                     _batch_size = 1;
-        execution_mode           _mode = execution_mode::execute;
+        device*         _d;
+        pool_allocator* _pool;
+        uint            _batch_size;
+        execution_mode  _mode;
+
+        scope() = default;
+        scope(device* d, pool_allocator* pool, execution_mode mode, uint batch_size);
+
+        void check() const;
 
     public:
 
-        context() = default;
-        context(const context&) = delete;
+        friend class device;
 
-        static const context& get_global()
-        {
-            static context dc;
-            return dc;
-        }
+        explicit scope(const scope&) = delete;
+        scope(scope&&) noexcept;
+        ~scope();
 
-        static void set_debug(bool on);
-        static bool is_debug();
-
-        void set_mode(execution_mode mode) { _mode = mode; }
-        void set_batches(uint batches) { _batch_size = batches; }
         bool is_training() const { return _mode == execution_mode::training; }
         uint batch_size() const { return _batch_size; }
 
-        void zero(vector x) const;
-        void fill(vector x, scalar value) const;
-        void random_uniform(vector x) const { _rng.random_uniform(x); }
-        void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f) const { _rng.random_normal(x, sdv, mean); }
-        void update(vector x, const const_span<scalar>& values) const;
-        void read(vector x, std::vector<scalar>& out) const;
+        // inherit device behaviour
+        inline void random_uniform(vector x);
+        inline void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f);
 
         template<uint n>
         tensor<n + 1> to_batched(const vector& x, const tensor_layout<n>& ly)
@@ -156,18 +214,53 @@ namespace nn
         }
 
         template<uint n>
-        tensor<n+1> batch_alloc(const tensor_layout<n>& ly) { return _pool.alloc(tensor_layout<n + 1>(_batch_size, ly)); }
+        tensor<n+1> batch_alloc(const tensor_layout<n>& ly) { return _pool->alloc(tensor_layout<n + 1>(_batch_size, ly)); }
 
         template<typename ... args_t, uint n = sizeof...(args_t) + 2>
         tensor<n> batch_alloc(uint shape0, args_t ... shape) { return this->alloc(_batch_size, shape0, shape...); }
 
         template<uint n>
-        tensor<n> alloc(const tensor_layout<n>& ly) { return _pool.alloc(ly); }
+        tensor<n> alloc(const tensor_layout<n>& ly) { return _pool->alloc(ly); }
 
         template<typename ... args_t, uint n = sizeof...(args_t) + 1>
-        tensor<n> alloc(uint shape0, args_t ... shape) { return _pool.alloc<n>(tensor_layout<n>(shape0, (uint)shape...)); }
-
-        void sync() const;
-        void clear_allocator() { _pool.free(); }
+        tensor<n> alloc(uint shape0, args_t ... shape) { return _pool->alloc<n>(tensor_layout<n>(shape0, (uint)shape...)); }
     };
+
+    /*
+        Device class represents the logical device,
+        there is one per application
+    */
+    class device : public ops
+    {
+        pool_allocator   _scope_pool;
+        rng              _rng;
+        bool             _debug_mode = false;
+        bool             _in_scope   = false;
+
+        device() = default;
+
+    public:
+
+        friend class scope;
+
+        static device& get();
+
+        static void set_debug(bool on) { get()._debug_mode = on; }
+        static bool is_debug() { return get()._debug_mode; }
+
+        device(const device&) = delete;
+        device(device&&) = delete;
+
+        // Enter a variable scope.
+        // There can only be one instance at a time
+        scope scope(execution_mode mode, uint batch_size);
+
+        void random_uniform(vector x) { _rng.random_uniform(x); }
+        void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f) { _rng.random_normal(x, sdv, mean); }
+    };
+
+    inline void scope::random_uniform(vector x) { check(); _d->random_uniform(x); }
+    inline void scope::random_normal(vector x, float sdv, float mean) { check(); _d->random_normal(x, sdv, mean); }
+
+    /*************************************************************************************************************************************/
 }

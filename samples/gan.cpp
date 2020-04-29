@@ -13,97 +13,85 @@ using namespace cimg_library;
 
 /*************************************************************************************************************************************/
 
-gan::gan(model& g, model& d) :
+GAN::GAN(model& g, model& d) :
 	_g(g), _d(d)
 {
 	assert(tensor_shape::equals(_g.output_shape(), _d.input_shape()));
 	assert(_d.output_shape()[0] == 1);
 }
 
-void gan::train(const std::vector<trainer::data>& data, uint epochs, uint batch_size)
+void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_size)
 {
-	_dc.set_mode(execution_mode::training);
-	_dc.set_batches(batch_size);
+	auto& dev = device::get();
 
-	composite_model gan_model(_g, _d);
+	// Construct a composite model
+	auto gan = _g.compose(_d.immutable());
+
+	adam opt(0.0002f, 0.5f);
+	binary_cross_entropy loss;
+
+	trainer gopt(gan, opt, loss);
+	trainer dopt(_d,  opt, loss);
 
 	tensor_layout<2> input_layout(batch_size,  _g.input_shape().total_size());
-	tensor_layout<2> img_layout(batch_size,    _g.output_shape().total_size());
+	tensor_layout<2> image_layout(batch_size,  _g.output_shape().total_size());
 	tensor_layout<2> output_layout(batch_size, _d.output_shape().total_size());
 
-	auto z_input    = _pool.alloc(input_layout);
-	auto real_input = _pool.alloc(img_layout);
-	auto y_d_1      = _pool.alloc(output_layout); _dc.fill(y_d_1, 0.9f);
-	auto y_d_0      = _pool.alloc(output_layout); _dc.fill(y_d_0, 0.0f);
-	auto y_g        = _pool.alloc(output_layout); _dc.fill(y_g,   1.0f);
+	auto z_input    = _constants.alloc(input_layout);
+	auto real_input = _constants.alloc(image_layout);
+	auto y_d_1      = _constants.alloc(output_layout); dev.fill(y_d_1, 0.9f);
+	auto y_d_0      = _constants.alloc(output_layout); dev.fill(y_d_0, 0.0f);
+	auto y_g        = _constants.alloc(output_layout); dev.fill(y_g,   1.0f);
 	// testing batch
-	auto z_test = _pool.alloc(input_layout);
-	_dc.random_uniform(z_test);
-
-	const float alpha = 0.0002f;
-	const float beta = 0.5f;
+	auto z_test = _constants.alloc(input_layout);
+	dev.random_uniform(z_test);
 
 	assert(data.size() % batch_size == 0);
 
-	trainer d_trainer(_d, adam(alpha, beta), binary_cross_entropy());
-	trainer g_trainer(_g, adam(alpha, beta), mse());
-
+	auto rng = new_random_engine();
 	std::vector<size_t> indices(data.size());
 	std::iota(indices.begin(), indices.end(), 0);
 
+
 	for (uint e = 0; e < epochs; e++)
 	{
-		thread_local auto rng = new_random_engine();
-
 		std::cout << time_stamp << " epoch: " << e << std::endl;
-
-		auto first = std::chrono::system_clock::now();
-		auto last = first;
 
 		std::shuffle(indices.begin(), indices.end(), rng);
 
-		for (uint i = 0, iters = 0; i < indices.size(); i++, iters++)
-		{
-			auto t = std::chrono::system_clock::now();
-			if ((t - last) > std::chrono::seconds(1))
-			{
-				std::cout << "(" << i << "/" << data.size() << ") ";
-				std::cout << std::fixed << std::setprecision(3) << (100 * (float)i / data.size()) << "% | ";
-				std::cout << iters << "it/s                              \r";
-				last = t;
-				iters = 0;
-			}
+		progress_printer progress(data.size() / batch_size);
 
+		for (uint i = 0; i < indices.size(); i++)
+		{
 			// update batch
 			uint batch_index = i % batch_size;
-			_dc.update(real_input[batch_index], data[indices[i]]);
+			dev.update(real_input[batch_index], data[indices[i]]);
 			
 			if (batch_index == 0 && i > 0)
 			{
-				_dc.clear_allocator();
-				auto dy = _dc.alloc(output_layout);
+				progress.next();
+				auto dc = dev.scope(execution_mode::training, batch_size);
 
 				//randomize z
-				_dc.random_uniform(z_input);
+				dc.random_uniform(z_input);
 
 				//train discriminator on real batch
-				d_trainer.train_batch(real_input, y_d_1, dy);
+				dopt.train_batch(dc, real_input, y_d_1);
 
 				//train discriminator on generated batch
-				auto g_output = _g.forward(_dc, z_input.flatten()).reshape(img_layout);
-				d_trainer.train_batch(g_output, y_d_0, dy);
+				auto g_output = _g.forward(dc, z_input.flatten()).reshape(image_layout);
+				dopt.train_batch(dc, g_output, y_d_0);
 
 				//randomize z
-				_dc.random_uniform(z_input);
+				dc.random_uniform(z_input);
 
-				auto dy2 = d_trainer.forward_backwards(_g.forward(_dc, z_input), y_g);
-				g_trainer.train_gradient(dy2);
+				//train the generator
+				gopt.train_batch(dc, z_input, y_g);
 			}
 		}
 
-		std::cout << "(" << data.size() << "/" << data.size() << ") 100%                                       ";
-		std::cout << std::endl;
-		
+		progress.stop();
+
 		save_generated_images(e, z_test);
 		_g.serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
 	}
@@ -111,10 +99,8 @@ void gan::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 
 /*************************************************************************************************************************************/
 
-void gan::save_generated_images(uint id, const tensor<2>& z_batch)
+void GAN::save_generated_images(uint id, const tensor<2>& z_batch)
 {
-	_dc.clear_allocator();
-
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
 
 	const uint scale_factor = 16;
@@ -127,8 +113,11 @@ void gan::save_generated_images(uint id, const tensor<2>& z_batch)
 
 	tensor_layout<2> img_layout(z_batch.shape(0), 28 * 28);
 	std::vector<scalar> gen_image;
-	auto g = _g.forward(_dc, z_batch).reshape(img_layout);
-	_dc.read(g, gen_image);
+
+	auto dc = device::get().scope(execution_mode::execute, z_batch.shape(0));
+
+	auto g = _g.forward(dc, z_batch).reshape(img_layout);
+	dc.read(g, gen_image);
 
 	uint batch_index = 0;
 	for (uint y_tile = 0; y_tile < tile_count; y_tile++)

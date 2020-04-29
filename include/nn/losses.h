@@ -10,8 +10,8 @@ namespace nn
 {
 	class loss_function
 	{
-		using fptr = float(*)(context& dc, const vector &y, const vector &t);
-		using dfptr = vector(*)(context& dc, const vector &y, const vector &t);
+		using fptr = float(*)(scope& dc, const vector &y, const vector &t);
+		using dfptr = vector(*)(scope& dc, const vector &y, const vector &t);
 
 		fptr _func;
 		dfptr _deriv;
@@ -22,12 +22,12 @@ namespace nn
 			_func(func), _deriv(deriv)
 		{}
 
-		float loss(context& dc, const vector& y, const vector& t) const
+		float loss(scope& dc, const vector& y, const vector& t) const
 		{
 			return _func(dc, y, t);
 		}
 
-		vector grad(context& dc, const vector& y, const vector& t) const
+		vector grad(scope& dc, const vector& y, const vector& t) const
 		{
 			return _deriv(dc, y, t);
 		}
@@ -45,23 +45,23 @@ namespace nn
 	{
 	public:
 
-		static float forward(context& dc, const vector& y, const vector& t);
-		static vector backward(context& dc, const vector& y, const vector& t);
+		static float forward(scope& dc, const vector& y, const vector& t);
+		static vector backward(scope& dc, const vector& y, const vector& t);
 	};
 
 	class binary_cross_entropy : public basic_loss_function<binary_cross_entropy>
 	{
 	public:
 
-		static float forward(context& dc, const vector& y, const vector& t);
-		static vector backward(context& dc, const vector& y, const vector& t);
+		static float forward(scope& dc, const vector& y, const vector& t);
+		static vector backward(scope& dc, const vector& y, const vector& t);
 	};
 
 	class categorical_cross_entropy : public basic_loss_function<categorical_cross_entropy>
 	{
 	public:
 
-		static float forward(context& dc, const vector& y, const vector& t);
-		static vector backward(context& dc, const vector& y, const vector& t);
+		static float forward(scope& dc, const vector& y, const vector& t);
+		static vector backward(scope& dc, const vector& y, const vector& t);
 	};
 }

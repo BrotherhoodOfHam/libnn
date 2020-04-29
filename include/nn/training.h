@@ -18,7 +18,6 @@ namespace nn
 	*/
 	class trainer
 	{
-		context       _dc;
 		model&        _model;
 		loss_function _loss;
 
@@ -33,17 +32,9 @@ namespace nn
 			{}
 		};
 
-		// training result
-		struct result
-		{
-			vector y;
-			vector dy;
-		};
-
 		std::vector<parameter> _parameters;
 
 		void update_parameters();
-		result train_batch(const tensor<2>& x, const tensor<2>& y);
 
 	public:
 
@@ -65,8 +56,15 @@ namespace nn
 			uint batch_size
 		);
 
+		// training result
+		struct result
+		{
+			vector y;
+			vector dy;
+		};
+
 		// Train on a batch
-		void train(const tensor<2>& x, const tensor<2>& y);
+		result train_batch(scope& dc, const tensor<2>& x, const tensor<2>& y);
 
 		// Evaluation metrics
 		struct metrics
@@ -82,4 +80,29 @@ namespace nn
 			uint batch_size = 1
 		);
 	};
+
+	/*
+		Progess pretty printer
+	*/
+	class progress_printer
+	{
+		std::chrono::time_point<std::chrono::system_clock> _last;
+		size_t _counter;
+		size_t _total;
+		size_t _iters;
+
+	public:
+
+		progress_printer(size_t count);
+
+		void next();
+		void stop();
+	};
+
+	/*
+		Helper function for iterating over batches of a dataset
+	*/
+	using training_function = std::function<void(const_span<scalar>, const_span<scalar>)>;
+
+	void foreach_random_batch(model& m, uint batch_size, const std::vector<trainer::data>& dataset, const std::vector<trainer::label>& labels, const training_function& func);
 }

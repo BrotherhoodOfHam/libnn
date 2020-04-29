@@ -2,8 +2,7 @@
 	Dropout regularization node
 */
 
-#include "device/kernels.h"
-#include "device/ops.h"
+#include "device/gpu.h"
 #include "nn/ops/dropout.h"
 
 using namespace nn;
@@ -15,7 +14,7 @@ dropout::dropout(tensor_shape input_shape, float probability) :
 	uniform_node(input_shape)
 {}
 
-vector dropout::forward(context& dc, const vector& x)
+vector dropout::forward(scope& dc, const vector& x)
 {
 	if (dc.is_training())
 	{
@@ -33,14 +32,14 @@ vector dropout::forward(context& dc, const vector& x)
 		_rng.random_bernoulli(_dropout, 1.0f - _probability);
 
 		auto y = dc.alloc(x.size());
-		vector_mul(y, _dropout, x);
+		dc.vector_mul(y, _dropout, x);
 		return y;
 	}
 
 	return x;
 }
 
-vector dropout::backward(context& dc, const vector& x, const vector& dy)
+vector dropout::backward(scope& dc, const vector& x, const vector& dy)
 {
 	if (dc.is_training())
 	{
@@ -51,7 +50,7 @@ vector dropout::backward(context& dc, const vector& x, const vector& dy)
 		*/
 
 		auto dx = dc.alloc(x.size());
-		vector_mul(dx, _dropout, dy);
+		dc.vector_mul(dx, _dropout, dy);
 		return dx;
 	}
 

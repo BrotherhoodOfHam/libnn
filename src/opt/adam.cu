@@ -2,7 +2,7 @@
 	Implementation of Adam optimizer
 */
 
-#include "device/kernels.h"
+#include "device/gpu.h"
 #include "nn/optimizers.h"
 
 using namespace nn;
@@ -50,8 +50,8 @@ public:
 		_layout(parameters_size, 2), _moments(parameters_size * 2)
 	{
 		//tensor_zero(_moments.as_vector());
-		auto& dc = context::get_global();
-		dc.zero(_moments.as_vector());
+		auto& d = device::get();
+		d.zero(_moments.as_vector());
 	}
 
 	void call(vector& param, const vector& grad)

@@ -2,7 +2,7 @@
 	Debug layer
 */
 
-#include "device/kernels.h"
+#include "device/gpu.h"
 #include "nn/ops/debug.h"
 
 using namespace nn;
@@ -13,7 +13,7 @@ debug_layer::debug_layer(tensor_shape shape, debug_flag flags) :
 	uniform_node(shape), _flags(flags)
 {}
 
-vector debug_layer::forward(context& dc, const vector& x)
+vector debug_layer::forward(scope& dc, const vector& x)
 {
 	if (_flags & debug_flag::print_forward)
 	{
@@ -23,7 +23,7 @@ vector debug_layer::forward(context& dc, const vector& x)
 	return x;
 }
 
-vector debug_layer::backward(context& dc, const vector& x, const vector& dy)
+vector debug_layer::backward(scope& dc, const vector& x, const vector& dy)
 {
 	if (_flags & debug_flag::print_backward)
 	{

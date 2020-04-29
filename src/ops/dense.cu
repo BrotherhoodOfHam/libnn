@@ -4,8 +4,7 @@
 
 #include <random>
 
-#include "device/kernels.h"
-#include "device/ops.h"
+#include "device/gpu.h"
 #include "nn/ops/dense.h"
 
 using namespace nn;
@@ -19,21 +18,20 @@ dense_layer::dense_layer(tensor_shape input_shape, uint layer_size) :
 {
 	const float sqrtn = std::sqrt((float)input_shape[0]);
 
-	auto& dc = context::get_global();
-	dc.zero(_b.v());
-	dc.zero(_b.dv());
-	dc.zero(_w.dv());
-	dc.random_normal(_w.v(), 1.0f / sqrtn);
-	dc.sync();
+	auto& d = device::get();
+	d.zero(_b.v());
+	d.zero(_b.dv());
+	d.zero(_w.dv());
+	d.random_normal(_w.v(), 1.0f / sqrtn);
 }
 
-vector dense_layer::forward(context& dc, const vector& _x)
+vector dense_layer::forward(scope& dc, const vector& _x)
 {
 	auto x = dc.to_batched(_x, _input);
 	auto y = dc.batch_alloc(_output);
 
-	matrix_set_rows(y, _b.v());
-	matrix_mul(y, x, _w.v(), matrix_flag::accumulate | matrix_flag::transpose_B);
+	dc.matrix_set_rows(y, _b.v());
+	dc.matrix_mul(y, x, _w.v(), ops::accumulate | ops::transpose_B);
 
 	return y;
 
@@ -53,7 +51,7 @@ vector dense_layer::forward(context& dc, const vector& _x)
 	*/
 }
 
-vector dense_layer::backward(context& dc, const vector& _x, const vector& _dy)
+vector dense_layer::backward(scope& dc, const vector& _x, const vector& _dy)
 {
 	auto x = dc.to_batched(_x, _input);
 	auto dy = dc.to_batched(_dy, _output);
@@ -64,14 +62,14 @@ vector dense_layer::backward(context& dc, const vector& _x, const vector& _dy)
 
 	// compute partial derivatives w.r.t weights
 	// δw = δy^T * x  (outer product)
-	matrix_mul(dw, dy, x, matrix_flag::transpose_A);
+	dc.matrix_mul(dw, dy, x, ops::transpose_A);
 
 	// compute partial derivatives w.r.t biases
 	// δb = δy
-	matrix_sum_rows(db, dy);
+	dc.matrix_sum_rows(db, dy);
 
 	// δx = δy * w^T 
-	matrix_mul(dx, dy, _w.v());
+	dc.matrix_mul(dx, dy, _w.v());
 
 	return dx;
 

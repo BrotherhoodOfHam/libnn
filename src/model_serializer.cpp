@@ -46,7 +46,7 @@ bool model::serialize(const std::string& filename)
 	write(f, s_magic);
 	write<uint>(f, (uint)parameter_set.size());
 
-	auto& dc = context::get_global();
+	auto& d = device::get();
 
 	for (auto param : parameter_set)
 	{
@@ -61,7 +61,7 @@ bool model::serialize(const std::string& filename)
 		write<uint>(f, p.shape().total_size());
 
 		// write data
-		dc.read(p, param_buffer);
+		d.read(p, param_buffer);
 		f.write((const char*)param_buffer.data(), (std::streamoff)sizeof(scalar) * param_buffer.size());
 	}
 

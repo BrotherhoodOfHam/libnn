@@ -40,8 +40,8 @@ namespace nn
 		tensor_shape output_shape() const { return _nodes.empty() ? tensor_shape(_input_shape) : _nodes.back()->output_shape(); }
 
 		// Forward and backward functions
-		vector forward(context& dc, const vector& x);
-		vector backward(context& dc, const vector& dy);
+		vector forward(scope& dc, const vector& x);
+		vector backward(scope& dc, const vector& dy);
 
 		// Return the learnable parameters of this model
 		const std::vector<node_parameter>& parameters() { return _parameters; }

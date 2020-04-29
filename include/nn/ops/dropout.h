@@ -12,7 +12,7 @@ namespace nn
 {
 	class dropout final : public uniform_node
 	{
-		random_generator _rng;
+		rng _rng;
 		float _probability;
 		vector _dropout;
 
@@ -20,7 +20,7 @@ namespace nn
 
 		dropout(tensor_shape input_shape, float probability);
 
-		vector forward(context& dc, const vector& x) override;
-		vector backward(context& dc, const vector& x, const vector& dy) override;
+		vector forward(scope& dc, const vector& x) override;
+		vector backward(scope& dc, const vector& x, const vector& dy) override;
 	};
 }

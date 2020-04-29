@@ -91,12 +91,11 @@ set(libnn_sources
 	src/ops/dropout.cu
 	src/ops/debug.cpp
 
-	src/device/kernels.h
-	src/device/ops.h
-	src/device/ops.cu
+	src/device/gpu.h
 	src/device/allocator.cpp
+	src/device/device.cpp
+	src/device/device_ops.cu
 	src/device/random.cu
-	src/device/context.cu
 
     src/common.cpp
     src/training.cpp

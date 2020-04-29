@@ -4,7 +4,7 @@
 
 #include <random>
 
-#include "kernels.h"
+#include "gpu.h"
 #include "nn/device.h"
 
 #include <curand.h>
@@ -14,7 +14,7 @@ using namespace nn;
 
 /*************************************************************************************************************************************/
 
-__global__ void RNG_bernoulli_kernel(float* x, uint n, random_generator::seed_type seed, float p)
+__global__ void RNG_bernoulli_kernel(float* x, uint n, rng::seed_type seed, float p)
 {
     uint i = global_index();
     if (i < n)
@@ -28,16 +28,16 @@ __global__ void RNG_bernoulli_kernel(float* x, uint n, random_generator::seed_ty
 
 /*************************************************************************************************************************************/
 
-random_generator::random_generator() :
-    random_generator(std::random_device()())
+rng::rng() :
+    rng(std::random_device()())
 {}
 
-random_generator::~random_generator()
+rng::~rng()
 {
     check(curandDestroyGenerator(_prng));
 }
 
-random_generator::random_generator(seed_type seed)
+rng::rng(seed_type seed)
 {
     check(curandCreateGenerator(&_prng, CURAND_RNG_PSEUDO_DEFAULT));
     check(curandSetPseudoRandomGeneratorSeed(_prng, seed));
@@ -66,22 +66,22 @@ void random_generator::init(seed_type seed, size_t size)
 }
 */
 
-void random_generator::seed(seed_type seed)
+void rng::seed(seed_type seed)
 {
     check(curandSetPseudoRandomGeneratorSeed(_prng, seed));
 }
 
-void random_generator::random_uniform(vector x)
+void rng::random_uniform(vector x)
 {
     check(curandGenerateUniform(_prng, x.ptr(), x.size()));
 }
 
-void random_generator::random_normal(vector x, float sdv, float mean)
+void rng::random_normal(vector x, float sdv, float mean)
 {
     check(curandGenerateNormal(_prng, x.ptr(), x.size(), mean, sdv));
 }
 
-void random_generator::random_bernoulli(vector x, float probability)
+void rng::random_bernoulli(vector x, float probability)
 {
     uint block_size = 256;
     uint block_count = ((uint)x.size() + block_size - 1) / block_size;

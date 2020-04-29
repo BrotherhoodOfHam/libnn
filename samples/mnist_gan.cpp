@@ -54,7 +54,7 @@ int main()
 	d.add<dense_layer>(1);
 	d.add<activation::sigmoid>();
 
-	gan gn(g, d);
+	GAN gan(g, d);
 
 	//prepare data
 	auto dataset = mnist::read_dataset<uint8_t, uint8_t>();
@@ -66,7 +66,7 @@ int main()
 	for (const auto& image : dataset.training_images)
 		process_image(real_data, image, true);
 
-	gn.train(real_data, 300, batch_size);
+	gan.train(real_data, 300, batch_size);
 
 	return 0;
 }

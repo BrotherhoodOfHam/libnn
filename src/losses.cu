@@ -2,8 +2,7 @@
 	Loss functions
 */
 
-#include "device/kernels.h"
-#include "device/ops.h"
+#include "device/gpu.h"
 #include "nn/losses.h"
 
 using namespace nn;
@@ -41,7 +40,7 @@ __device__ scalar mse_loss(scalar y, scalar t)
 	return (d * d) / 2;
 }
 
-float mse::forward(context& dc, const vector& y, const vector& t)
+float mse::forward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(y.size(), [&](uint i) {
@@ -52,10 +51,10 @@ float mse::forward(context& dc, const vector& y, const vector& t)
 
 	auto losses = dc.alloc(y.size());
 	launch_loss<mse_loss>(y, t, losses);
-	return vector_sum(losses);
+	return dc.vector_sum(losses);
 }
 
-vector mse::backward(context& dc, const vector& y, const vector& t)
+vector mse::backward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(dy.size(), [&](uint i) {
@@ -65,7 +64,7 @@ vector mse::backward(context& dc, const vector& y, const vector& t)
 	*/
 
 	auto dy = dc.alloc(y.size());
-	vector_sub(dy, y, t);
+	dc.vector_sub(dy, y, t);
 	return dy;
 }
 
@@ -81,7 +80,7 @@ __device__ scalar bce_grad_kernel(scalar y, scalar t)
 	return (y - t) / (y * (1.0f - y) + FLT_EPSILON);
 }
 
-float binary_cross_entropy::forward(context& dc, const vector& y, const vector& t)
+float binary_cross_entropy::forward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(y.size(), [&](uint i) {
@@ -92,10 +91,10 @@ float binary_cross_entropy::forward(context& dc, const vector& y, const vector& 
 
 	auto losses = dc.alloc(y.size());
 	launch_loss<bce_kernel>(y, t, losses);
-	return vector_sum(losses);
+	return dc.vector_sum(losses);
 }
 
-vector binary_cross_entropy::backward(context& dc, const vector& y, const vector& t)
+vector binary_cross_entropy::backward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(dy.size(), [&](uint i) {
@@ -121,7 +120,7 @@ __device__ scalar cce_grad_kernel(scalar y, scalar t)
 	return -t / (y + FLT_EPSILON);
 }
 
-float categorical_cross_entropy::forward(context& dc, const vector& y, const vector& t)
+float categorical_cross_entropy::forward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(y.size(), [&](uint i) {
@@ -132,10 +131,10 @@ float categorical_cross_entropy::forward(context& dc, const vector& y, const vec
 
 	auto losses = dc.alloc(y.size());
 	launch_loss<cce_kernel>(y, t, losses);
-	return vector_sum(losses);
+	return dc.vector_sum(losses);
 }
 
-vector categorical_cross_entropy::backward(context& dc, const vector& y, const vector& t)
+vector categorical_cross_entropy::backward(scope& dc, const vector& y, const vector& t)
 {
 	/*
 	dispatch(dy.size(), [&](uint i) {

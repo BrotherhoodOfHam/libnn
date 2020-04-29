@@ -8,7 +8,7 @@ using namespace nn;
 
 /***********************************************************************************************************************/
 
-vector model::forward(context& dc, const vector& x)
+vector model::forward(scope& dc, const vector& x)
 {
 	_activations.clear();
 	_activations.push_back(x);
@@ -22,7 +22,7 @@ vector model::forward(context& dc, const vector& x)
 	return _activations.back();
 }
 
-vector model::backward(context& dc, const vector& dy)
+vector model::backward(scope& dc, const vector& dy)
 {
 	if (_activations.empty())
 	{
@@ -51,8 +51,7 @@ model model::immutable() const
 
 model model::compose(model& next) const
 {
-	auto output = output_shape();
-	if (!std::equal(output.begin(), output.end(), next.input_shape().begin(), next.input_shape().end()))
+	if (!tensor_shape::equals(output_shape(), next.input_shape()))
 		throw std::runtime_error("cannot compose models with mismatched shape");
 
 	model composed(input_shape());

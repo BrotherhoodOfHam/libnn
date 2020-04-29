@@ -1,8 +1,8 @@
 /*
-	BLAS operations
+	Operations source
 */
 
-#include "ops.h"
+#include "gpu.h"
 
 #include <cublas_v2.h>
 
@@ -29,6 +29,44 @@ static cublasHandle_t get_handle()
 	return s_handle.get();
 }
 
+/*************************************************************************************************************************************
+	Element level operations
+/*************************************************************************************************************************************/
+
+void ops::update(vector x, const const_span<scalar>& values)
+{
+	assert(x.size() == values.size());
+
+	check(cudaMemcpy(x.ptr(), values.begin(), sizeof(scalar) * values.size(), cudaMemcpyHostToDevice));
+}
+
+void ops::read(vector x, std::vector<scalar>& out)
+{
+	out.resize(x.size());
+
+	check(cudaMemcpy(out.data(), x.ptr(), sizeof(scalar) * x.size(), cudaMemcpyDeviceToHost));
+}
+
+void ops::zero(vector x)
+{
+	check(cudaMemset(x.ptr(), 0, x.size() * sizeof(scalar)));
+}
+
+__global__ void fill_kernel(scalar* ptr, uint n, scalar val)
+{
+	uint i = (blockDim.x * blockIdx.x) + threadIdx.x;
+	if (i < n) ptr[i] = val;
+}
+
+void ops::fill(vector x, scalar value)
+{
+	uint blockSize = 256;
+	uint blockCount = (x.size() + blockSize - 1) / blockSize;
+	fill_kernel<<<1, x.size()>>>(x.ptr(), x.size(), value);
+}
+
+/*************************************************************************************************************************************
+	Vector operations
 /*************************************************************************************************************************************/
 
 template<scalar(op)(scalar, scalar)>
@@ -53,37 +91,36 @@ void launch_vector_op(vector& c, const vector& a, const vector& b)
 	vector_op_kernel<op><<<block_count, block_size>>>(c.size(), c.ptr(), a.ptr(), b.ptr());
 }
 
-
 __device__ scalar vector_mul_op(scalar a, scalar b) { return a * b; }
 
-void nn::vector_mul(vector& c, const vector& a, const vector& b)
+void ops::vector_mul(vector& c, const vector& a, const vector& b)
 {
 	launch_vector_op<vector_mul_op>(c, a, b);
 }
 
 __device__ scalar vector_add_op(scalar a, scalar b) { return a * b; }
 
-void nn::vector_add(vector& c, const vector& a, const vector& b)
+void ops::vector_add(vector& c, const vector& a, const vector& b)
 {
 	launch_vector_op<vector_add_op>(c, a, b);
 }
 
 __device__ scalar vector_sub_op(scalar a, scalar b) { return a - b; }
 
-void nn::vector_sub(vector& c, const vector& a, const vector& b)
+void ops::vector_sub(vector& c, const vector& a, const vector& b)
 {
 	launch_vector_op<vector_sub_op>(c, a, b);
 }
 
-/*************************************************************************************************************************************/
-
-scalar nn::vector_sum(const vector& a)
+scalar ops::vector_sum(const vector& a)
 {
 	auto r = std::make_unique<scalar>();
 	check(cublasSasum(get_handle(), a.size(), a.ptr(), 1, r.get()));
 	return *r;
 }
 
+/*************************************************************************************************************************************
+	Matrix functions
 /*************************************************************************************************************************************/
 
 /*
@@ -125,15 +162,15 @@ tensor<2> matrix_muladd(context& dc, const tensor<2>& a, const tensor<2>& b, con
 }
 */
 
-void nn::matrix_mul(tensor<2>& c, const tensor<2>& a, const tensor<2>& b, matrix_flag flags)
+void ops::matrix_mul(tensor<2>& c, const tensor<2>& a, const tensor<2>& b, ops::flag flags)
 {
 	/*
 		Because cublas expects column-major matrices when we store them in row-major
 		we swap A and B when invoking cublas functions
 	*/
 
-	bool trn_A = flags & matrix_flag::transpose_A;
-	bool trn_B = flags & matrix_flag::transpose_B;
+	bool trn_A = flags & ops::transpose_A;
+	bool trn_B = flags & ops::transpose_B;
 
 	auto opA = trn_A ? CUBLAS_OP_T : CUBLAS_OP_N;
 	auto opB = trn_B ? CUBLAS_OP_T : CUBLAS_OP_N;
@@ -153,7 +190,7 @@ void nn::matrix_mul(tensor<2>& c, const tensor<2>& a, const tensor<2>& b, matrix
 	uint k = colsA;
 
 	const float alpha = 1.0f;
-	const float beta = (flags & matrix_flag::accumulate) ? 1.0f : 0.0f;
+	const float beta = (flags & ops::accumulate) ? 1.0f : 0.0f;
 
 	cublasSgemm(
 		get_handle(),
@@ -177,7 +214,7 @@ __global__ void matrix_set_rows_kernel(uint rows, uint cols, scalar* m, const sc
 	}
 }
 
-void nn::matrix_set_rows(tensor<2>& m, const vector& a)
+void ops::matrix_set_rows(tensor<2>& m, const vector& a)
 {
 	assert(m.shape(1) == a.size());
 
@@ -204,7 +241,7 @@ __global__ void matrix_sum_rows_kernel(uint rows, uint cols, const scalar* m, sc
 	v[i] = sum;
 }
 
-void nn::matrix_sum_rows(vector& sum, const tensor<2>& m)
+void ops::matrix_sum_rows(vector& sum, const tensor<2>& m)
 {
 	assert(m.shape(1) == sum.size());
 

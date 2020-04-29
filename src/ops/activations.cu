@@ -5,7 +5,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "device/kernels.h"
+#include "device/gpu.h"
 #include "nn/ops/activations.h"
 
 using namespace nn;
@@ -33,7 +33,7 @@ __global__ void activation_d_kernel(uint n, scalar* dx, const scalar* x, const s
 }
 
 template<scalar(func)(scalar)>
-static vector launch(context& dc, const vector& x)
+static vector launch(scope& dc, const vector& x)
 {
 	auto y = dc.alloc(x.size());
 
@@ -45,7 +45,7 @@ static vector launch(context& dc, const vector& x)
 }
 
 template<scalar(func)(scalar, scalar, scalar)>
-static vector launch(context& dc, const vector& x, const vector& y, const vector& dy)
+static vector launch(scope& dc, const vector& x, const vector& y, const vector& dy)
 {
 	auto dx = dc.alloc(x.size());
 
@@ -69,7 +69,7 @@ __device__ scalar sigmoid_d_func(scalar x, scalar y, scalar dy)
 	return (y * (1.0f - y)) * dy;
 }
 
-vector activation::sigmoid::forward(context& dc, const vector& x)
+vector activation::sigmoid::forward(scope& dc, const vector& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -79,7 +79,7 @@ vector activation::sigmoid::forward(context& dc, const vector& x)
 	return _y = launch<sigmoid_func>(dc, x);
 }
 
-vector activation::sigmoid::backward(context& dc, const vector& x, const vector& dy)
+vector activation::sigmoid::backward(scope& dc, const vector& x, const vector& dy)
 {
 	/*
 	// σ'(x) = σ(x) * (1 - σ(x))
@@ -104,7 +104,7 @@ __device__ scalar tanh_d_func(scalar x, scalar y, scalar dy)
 	return (1 - (y * y)) * dy;
 }
 
-vector activation::tanh::forward(context& dc, const vector& x)
+vector activation::tanh::forward(scope& dc, const vector& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -116,7 +116,7 @@ vector activation::tanh::forward(context& dc, const vector& x)
 	return _y = launch<tanh_func>(dc, x);
 }
 
-vector activation::tanh::backward(context& dc, const vector& x, const vector& dy)
+vector activation::tanh::backward(scope& dc, const vector& x, const vector& dy)
 {
 	/*
 	// tanh'(x) = 1 - tanh(x)^2
@@ -139,7 +139,7 @@ __device__ scalar relu_d_func(scalar x, scalar y, scalar dy)
 	return (x > 0.0f) ? dy : 0;
 }
 
-vector activation::relu::forward(context& dc, const vector& x)
+vector activation::relu::forward(scope& dc, const vector& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -149,7 +149,7 @@ vector activation::relu::forward(context& dc, const vector& x)
 	return launch<relu_func>(dc, x);
 }
 
-vector activation::relu::backward(context& dc, const vector& x, const vector& dy)
+vector activation::relu::backward(scope& dc, const vector& x, const vector& dy)
 {
 	/*
 	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
@@ -179,7 +179,7 @@ __global__ void leaky_relu_d_kernel(uint n, scalar* dx, const scalar* x, const s
 	}
 }
 
-vector activation::leaky_relu::forward(context& dc, const vector& x)
+vector activation::leaky_relu::forward(scope& dc, const vector& x)
 {
 	/*
 	return activate(x, [=](scalar x) {
@@ -196,7 +196,7 @@ vector activation::leaky_relu::forward(context& dc, const vector& x)
 	return y;
 }
 
-vector activation::leaky_relu::backward(context& dc, const vector& x, const vector& dy)
+vector activation::leaky_relu::backward(scope& dc, const vector& x, const vector& dy)
 {
 	/*
 	return derivative(x, dy, [=](scalar x, scalar y, scalar dy, scalar dx) {
@@ -270,7 +270,7 @@ __global__ void softmax_d_kernel(uint b, uint n, scalar* _dx, const scalar* _y, 
 	}
 }
 
-vector activation::softmax::forward(context& dc, const vector& x)
+vector activation::softmax::forward(scope& dc, const vector& x)
 {
 	/*
 	auto x = _x.as_vector();
@@ -308,7 +308,7 @@ vector activation::softmax::forward(context& dc, const vector& x)
 	return _y = y;
 }
 
-vector activation::softmax::backward(context& dc, const vector& x, const vector& dy)
+vector activation::softmax::backward(scope& dc, const vector& x, const vector& dy)
 {
 	/*
 	auto dy = _dy.as_vector();

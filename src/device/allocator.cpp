@@ -1,16 +1,7 @@
+#include "gpu.h"
 #include "nn/device.h"
-#include "kernels.h"
 
 using namespace nn;
-
-template<typename ... fmt_args>
-void debug_printf(const char* fmt, fmt_args&& ... args)
-{
-    if (context::is_debug())
-    {
-        printf(fmt, args...);
-    }
-}
 
 /*************************************************************************************************************************************/
 

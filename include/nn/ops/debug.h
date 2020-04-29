@@ -14,6 +14,7 @@ namespace nn
 		print_forward   = 1,
 		print_backward = 2
 	};
+
 	inline debug_flag operator|(debug_flag a, debug_flag b) { return (debug_flag)((int)a | (int)b); }
 	inline bool operator&(debug_flag a, debug_flag b) { return ((int)a & (int)b) != 0; }
 
@@ -25,7 +26,7 @@ namespace nn
 
 		debug_layer(tensor_shape shape, debug_flag flags = debug_flag::print_all);
 
-		vector forward(context& dc, const vector& x) override;
-		vector backward(context& dc, const vector& x, const vector& dy) override;
+		vector forward(scope& dc, const vector& x) override;
+		vector backward(scope& dc, const vector& x, const vector& dy) override;
 	};
 }

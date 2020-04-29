@@ -8,7 +8,7 @@
 #include <random>
 #include <chrono>
 
-#include "device/kernels.h"
+#include "device/gpu.h"
 #include "nn/training.h"
 
 using namespace nn;
@@ -43,51 +43,6 @@ static size_t arg_max(const const_span<scalar>& v)
 		}
 	}
 	return i_max;
-}
-
-template<typename function_type, typename = if_callable<function_type, const const_span<scalar>&, const const_span<scalar>&>>
-void foreach_batch(uint batch_size, uint number_of_classes, const std::vector<trainer::data>& dataset, const std::vector<trainer::label>& labels, const function_type& func)
-{
-	assert(dataset.size() == labels.size());
-	assert((dataset.size() % batch_size) == 0);
-
-	auto rng = new_random_engine();
-
-	std::vector<size_t> indices(dataset.size());
-	std::vector<scalar> x;
-	std::vector<scalar> y;
-
-	std::iota(indices.begin(), indices.end(), 0);
-	std::shuffle(indices.begin(), indices.end(), rng);
-
-	for (size_t i = 0; i < indices.size(); i += batch_size)
-	{
-		x.clear();
-		y.clear();
-
-		for (size_t i_batch = 0; i_batch < batch_size; i_batch++)
-		{
-			size_t i_sample = indices[i + i_batch];
-			const auto& data = dataset[i_sample];
-			uint label = labels[i_sample];
-
-			for (scalar v : data)
-				x.push_back(v);
-
-			if (number_of_classes == 1)
-			{
-				y.push_back((scalar)label);
-			}
-			else
-			{
-				// one-hot encoding
-				for (uint i = 0; i < number_of_classes; i++)
-					y.push_back(i == label ? 1.0f : 0.0f);
-			}
-		}
-
-		func(x, y);
-	}
 }
 
 /*************************************************************************************************************************************/
@@ -132,38 +87,33 @@ void trainer::train(
 		uint i_iters = 0;
 		float training_loss = 0.0f;
 
-		uint batch_count = (uint)(x_train.size() / batch_size);
+		progress_printer pro(x_train.size() / batch_size);
 
-		foreach_batch(batch_size, output_size, x_train, y_train, [&](const_span<scalar> inp, const_span<scalar> out)
+		foreach_random_batch(_model, batch_size, x_train, y_train, [&](auto input, auto target)
 		{
-			auto t = std::chrono::system_clock::now();
-			if ((t - last) > std::chrono::seconds(1))
-			{
-				std::cout << "(" << i_count << "/" << batch_count << ") ";
-				std::cout << std::round(1000.0f * (float)i_count / batch_count) / 10 << "% | " << i_iters << "it/s                            \r";
-				last = t;
-				i_iters = 0;
-			}
+			pro.next();
 
-			_dc.set_batches(batch_size);
-			_dc.set_mode(execution_mode::training);
-			_dc.clear_allocator();
+			auto dc = device::get().scope(execution_mode::training, batch_size);
 
-			auto x  = _dc.batch_alloc(input_size);
-			auto y  = _dc.batch_alloc(output_size);
+			auto x  = dc.batch_alloc(input_size);
+			auto y  = dc.batch_alloc(output_size);
 
-			_dc.update(x, inp);
-			_dc.update(y, out);
+			dc.update(x, input);
+			dc.update(y, target);
 
 			//training
-			train_batch(x, y);
+			auto r = train_batch(dc, x, y);
+
+			training_loss += _loss.loss(dc, r.y, y);
 
 			i_count++;
 			i_iters++;
 		});
 
-		std::cout << "(" << i_count << "/" << batch_count << ") 100%";
-		std::cout << std::endl;
+
+		pro.stop();
+
+		training_loss /= x_train.size();
 
 		auto metrics = evaluate(x_test, y_test, batch_size);
 
@@ -186,28 +136,25 @@ trainer::metrics trainer::evaluate(
 	uint input_size = _model.input_shape().total_size();
 	uint output_size = _model.output_shape().total_size();
 
-	_dc.set_mode(execution_mode::execute);
-	_dc.set_batches(batch_size);
-
 	std::vector<scalar> pred_buf;
 
-	foreach_batch(batch_size, output_size, x_test, y_test, [&](const_span<scalar> input, const_span<scalar> target)
+	foreach_random_batch(_model, batch_size, x_test, y_test, [&](auto input, auto target)
 	{
-		_dc.clear_allocator();
+		auto dc = device::get().scope(execution_mode::execute, batch_size);
 
-		auto t = _dc.batch_alloc(output_size);
-		auto x = _dc.batch_alloc(input_size);
+		auto t = dc.batch_alloc(output_size);
+		auto x = dc.batch_alloc(input_size);
 
-		_dc.update(t, target);
-		_dc.update(x, input);
+		dc.update(t, target);
+		dc.update(x, input);
 
-		auto a = _model.forward(_dc, x);
+		auto a = _model.forward(dc, x);
 
 		// calculate loss
-		mt.loss += _loss.loss(_dc, a, t);
+		mt.loss += _loss.loss(dc, a, t);
 
 		// direct comparison
-		_dc.read(a, pred_buf);
+		dc.read(a, pred_buf);
 		tensor<2> h_prediction(pred_buf.data(), t.layout());
 		tensor<2> h_target(const_cast<scalar*>(target.begin()), t.layout());
 
@@ -225,38 +172,106 @@ trainer::metrics trainer::evaluate(
 	return mt;
 }
 
-
-trainer::result trainer::train_batch(const tensor<2>& x, const tensor<2>& y)
+trainer::result trainer::train_batch(scope& dc, const tensor<2>& x, const tensor<2>& y)
 {
 	result r;
 	//forward prop
-	r.y = _model.forward(_dc, x);
+	r.y = _model.forward(dc, x);
 	//backward prop
-	r.dy = _model.backward(_dc, _loss.grad(_dc, r.y, y));
+	r.dy = _model.backward(dc, _loss.grad(dc, r.y, y));
 	//optimize
 	update_parameters();
 
 	return r;
 }
 
-void trainer::train(const tensor<2>& x, const tensor<2>& y)
-{
-	assert(x.shape(0) == y.shape(0));
-
-	_dc.set_batches(x.shape(0));
-	_dc.set_mode(execution_mode::training);
-	_dc.clear_allocator();
-
-	train_batch(x, y);
-}
-
-/*************************************************************************************************************************************/
-
 void trainer::update_parameters()
 {
 	for (auto& p : _parameters)
 	{
 		p.optimize(p.param, p.grad);
+	}
+}
+
+/*************************************************************************************************************************************/
+
+progress_printer::progress_printer(size_t count) :
+	_total(count), _counter(0), _iters(0), _last(std::chrono::system_clock::now())
+{}
+
+void progress_printer::next()
+{
+	_counter++;
+	_iters++;
+
+	if (_counter >= _total)
+	{
+		stop();
+	}
+	else
+	{
+		auto t = std::chrono::system_clock::now();
+		if ((t - _last) > std::chrono::seconds(1))
+		{
+			std::cout << "(" << _counter << "/" << _total << ") ";
+			std::cout << std::fixed << std::setprecision(3) << (100 * (float)_counter / _total) << "% | ";
+			std::cout << _iters << "it/s                              \r";
+			_last = t;
+			_iters = 0;
+		}
+	}
+}
+
+void progress_printer::stop()
+{
+	std::cout << "(" << _total << "/" << _total << ") 100%                                        " << std::endl;
+}
+
+/*************************************************************************************************************************************/
+
+void nn::foreach_random_batch(model& m, uint batch_size, const std::vector<trainer::data>& dataset, const std::vector<trainer::label>& labels, const training_function& func)
+{
+	assert(dataset.size() == labels.size());
+	assert((dataset.size() % batch_size) == 0);
+
+	auto rng = new_random_engine();
+
+	auto number_of_classes = m.output_shape().total_size();
+
+	std::vector<size_t> indices(dataset.size());
+	std::vector<scalar> x;
+	std::vector<scalar> y;
+
+	std::iota(indices.begin(), indices.end(), 0);
+	std::shuffle(indices.begin(), indices.end(), rng);
+
+	for (size_t i = 0; i < indices.size(); i += batch_size)
+	{
+		x.clear();
+		y.clear();
+
+		for (size_t i_batch = 0; i_batch < batch_size; i_batch++)
+		{
+			size_t i_sample = indices[i + i_batch];
+			const auto& data = dataset[i_sample];
+			uint label = labels[i_sample];
+
+			for (scalar v : data)
+				x.push_back(v);
+
+			if (number_of_classes == 1)
+			{
+				y.push_back((scalar)label);
+			}
+			else
+			{
+				// one-hot encoding
+				for (uint i = 0; i < number_of_classes; i++)
+					y.push_back(i == label ? 1.0f : 0.0f);
+			}
+		}
+
+		func(x, y);
 	}
 }
 
