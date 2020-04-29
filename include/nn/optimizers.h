@@ -22,7 +22,7 @@ namespace nn
 		{
 			virtual ~state() {}
 		};
-		using fptr = void (*)(state* state, buffer& param, const buffer& gradient);
+		using fptr = void (*)(state* state, vector& param, const vector& gradient);
 
 	private:
 
@@ -38,7 +38,7 @@ namespace nn
 		opt_function() : _func(nullptr) {}
 		opt_function(opt_function&&) = default;
 
-		void operator()(buffer& param, const buffer& gradient)
+		void operator()(vector& param, const vector& gradient)
 		{
 			return _func(_state.get(), param, gradient);
 		}
@@ -47,7 +47,7 @@ namespace nn
 		template<class state_impl, class = std::enable_if_t<std::is_convertible_v<state_impl*, state*>>, class ... args_type>
 		static opt_function make(args_type&& ... args)
 		{
-			fptr thunk = [](state* s, buffer& param, const buffer& grad)
+			fptr thunk = [](state* s, vector& param, const vector& grad)
 			{
 				((state_impl*)s)->call(param, grad);
 			};

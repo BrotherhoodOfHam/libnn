@@ -10,30 +10,30 @@ namespace nn
 {
 	struct node_parameter
 	{
-		buffer p, dp;
-		node_parameter(const buffer& _p, const buffer& _dp) : p(_p), dp(_dp) {}
+		vector p, dp;
+		node_parameter(const vector& _p, const vector& _dp) : p(_p), dp(_dp) {}
 	};
 
 	/*
 		Tensor variable
 	*/
 	template<uint rank>
-	class variable
+	class tensor_variable
 	{
 		tensor_layout<rank>  _layout;
-		buffer        _v;
-		buffer        _dv;
+		buffer				 _v;
+		buffer				 _dv;
 
 	public:
 
-		using tensor_slice = tensor<rank, scalar, internal::tensor_kind::is_proxy>;
+		using tensor_slice = tensor<rank, scalar, tensor_kind::is_slice>;
 
-		variable() = default;
-		variable(const variable&) = default;
+		tensor_variable() = default;
+		tensor_variable(const tensor_variable&) = default;
 
 		template<typename ... args_t, typename = std::enable_if_t<rank == (sizeof...(args_t) + 1)>>
-		variable(uint shape0, args_t ... shape) :
-			_layout(shape0, shape...),
+		tensor_variable(uint shape0, args_t ... shape) :
+			_layout(shape0, (uint)shape...),
 			_dv(_layout.total_size()),
 			_v(_layout.total_size())
 		{}
@@ -44,14 +44,16 @@ namespace nn
 		inline tensor_shape shape() const { return _layout.shape(); }
 		inline tensor_layout_view<rank> layout() const { return _layout; }
 
-		node_parameter as_param() const { return node_parameter(_v, _dv); }
+		node_parameter as_param() const { return node_parameter(_v.as_vector(), _dv.as_vector()); }
 
 		inline tensor_slice v() const { return tensor_slice(_v.ptr(), layout()); }
 		inline tensor_slice dv() const { return tensor_slice(_dv.ptr(), layout()); }
 	};
 
 	/*
-		Node representing a single differentiable operation
+		Node representing a single differentiable operation.
+
+		An operation may expose learnable parameters.
 	*/
 	class node
 	{
@@ -66,17 +68,9 @@ namespace nn
 
 		// back propagate the gradient
 		virtual vector backward(context& dc, const vector& x, const vector& dy) = 0;
-	};
 
-	/*
-		Node representing a differentiable operation with 2 learnable parameters
-	*/
-	class parameterised_node : public node
-	{
-	public:
-
-		virtual node_parameter get_w() const = 0;
-		virtual node_parameter get_b() const = 0;
+		// Enumerate any learnable parameters for this operation
+		virtual void get_parameters(std::vector<node_parameter>& parameter_list) const { }
 	};
 
 	/*

@@ -69,7 +69,7 @@ void foreach_batch(uint batch_size, uint number_of_classes, const std::vector<tr
 		{
 			size_t i_sample = indices[i + i_batch];
 			const auto& data = dataset[i_sample];
-			auto label = labels[i_sample];
+			uint label = labels[i_sample];
 
 			for (scalar v : data)
 				x.push_back(v);
@@ -82,7 +82,7 @@ void foreach_batch(uint batch_size, uint number_of_classes, const std::vector<tr
 			{
 				// one-hot encoding
 				for (uint i = 0; i < number_of_classes; i++)
-					y.push_back(i == label ? 1 : 0);
+					y.push_back(i == label ? 1.0f : 0.0f);
 			}
 		}
 
@@ -92,19 +92,12 @@ void foreach_batch(uint batch_size, uint number_of_classes, const std::vector<tr
 
 /*************************************************************************************************************************************/
 
-trainer::trainer(model& seq, optimizer_type& opt, const loss_function& loss) :
-	_model(seq), _loss(loss)
+trainer::trainer(model& m, optimizer_type& opt, const loss_function& loss) :
+	_model(m), _loss(loss)
 {
-	for (auto& node : _model)
+	for (auto& b : m.parameters())
 	{
-		auto p = dynamic_cast<parameterised_node*>(node.get());
-		if (p != nullptr)
-		{
-			auto w = p->get_w();
-			_parameters.push_back(parameter(w.p, w.dp, opt.for_param(w.p.size())));
-			auto b = p->get_b();
-			_parameters.push_back(parameter(b.p, b.dp, opt.for_param(b.p.size())));
-		}
+		_parameters.push_back(parameter(b, opt.for_param(b.p.size())));
 	}
 }
 
@@ -139,9 +132,6 @@ void trainer::train(
 		uint i_iters = 0;
 		float training_loss = 0.0f;
 
-		_dc.set_mode(execution_mode::training);
-		_dc.set_batches(batch_size);
-
 		uint batch_count = (uint)(x_train.size() / batch_size);
 
 		foreach_batch(batch_size, output_size, x_train, y_train, [&](const_span<scalar> inp, const_span<scalar> out)
@@ -155,6 +145,8 @@ void trainer::train(
 				i_iters = 0;
 			}
 
+			_dc.set_batches(batch_size);
+			_dc.set_mode(execution_mode::training);
 			_dc.clear_allocator();
 
 			auto x  = _dc.batch_alloc(input_size);
@@ -164,7 +156,7 @@ void trainer::train(
 			_dc.update(y, out);
 
 			//training
-			training_loss += train_batch(x, y);
+			train_batch(x, y);
 
 			i_count++;
 			i_iters++;
@@ -173,89 +165,89 @@ void trainer::train(
 		std::cout << "(" << i_count << "/" << batch_count << ") 100%";
 		std::cout << std::endl;
 
-		training_loss /= x_train.size();
-		double loss = 0.0;
-		uint correct = 0;
-
-		_dc.set_mode(execution_mode::execute);
-		_dc.set_batches(batch_size);
-
-		std::vector<scalar> pred_buf;
-
-		foreach_batch(batch_size, output_size, x_test, y_test, [&](const_span<scalar> input, const_span<scalar> target)
-		{
-			_dc.clear_allocator();
-
-			auto t = _dc.batch_alloc(output_size);
-			auto x = _dc.batch_alloc(input_size);
-
-			_dc.update(t, target);
-			_dc.update(x, input);
-
-			auto a = _model.forward(_dc, x);
-
-			// calculate loss
-			loss += _loss.loss(_dc, a, t);
-
-			// direct comparison
-			_dc.read(a, pred_buf);
-			tensor<2> h_prediction(pred_buf.data(), t.layout());
-			tensor<2> h_target(const_cast<scalar*>(target.begin()), t.layout());
-
-			for (uint b = 0; b < batch_size; b++)
-			{
-				if (arg_max(h_prediction[b]) == arg_max(h_target[b]))
-				{
-					correct++;
-				}
-			}
-		});
-
-		loss /= x_test.size();
+		auto metrics = evaluate(x_test, y_test, batch_size);
 
 		std::cout << "training loss: " << training_loss
-			<< " | loss: " << loss
-			<< " | accuracy: " << ((float)correct / x_test.size()) << std::endl;
+			<< " | loss: " << metrics.loss
+			<< " | accuracy: " << metrics.accuracy << std::endl;
 	}
-
-	_dc.clear_allocator();
 }
 
-float trainer::train_batch(const tensor<2>& x, const tensor<2>& y)
+trainer::metrics trainer::evaluate(
+	const std::vector<data>& x_test,
+	const std::vector<label>& y_test,
+	uint batch_size
+)
 {
-	_dc.set_mode(execution_mode::training);
+	metrics mt;
+	mt.loss = 0;
+	uint correct = 0;
 
+	uint input_size = _model.input_shape().total_size();
+	uint output_size = _model.output_shape().total_size();
+
+	_dc.set_mode(execution_mode::execute);
+	_dc.set_batches(batch_size);
+
+	std::vector<scalar> pred_buf;
+
+	foreach_batch(batch_size, output_size, x_test, y_test, [&](const_span<scalar> input, const_span<scalar> target)
+	{
+		_dc.clear_allocator();
+
+		auto t = _dc.batch_alloc(output_size);
+		auto x = _dc.batch_alloc(input_size);
+
+		_dc.update(t, target);
+		_dc.update(x, input);
+
+		auto a = _model.forward(_dc, x);
+
+		// calculate loss
+		mt.loss += _loss.loss(_dc, a, t);
+
+		// direct comparison
+		_dc.read(a, pred_buf);
+		tensor<2> h_prediction(pred_buf.data(), t.layout());
+		tensor<2> h_target(const_cast<scalar*>(target.begin()), t.layout());
+
+		for (uint b = 0; b < batch_size; b++)
+		{
+			if (arg_max(h_prediction[b]) == arg_max(h_target[b]))
+			{
+				correct++;
+			}
+		}
+	});
+
+	mt.loss /= x_test.size();
+	mt.accuracy = (float)correct / x_test.size();
+	return mt;
+}
+
+
+trainer::result trainer::train_batch(const tensor<2>& x, const tensor<2>& y)
+{
+	result r;
 	//forward prop
-	const auto& a = _model.forward(_dc, x);
-	
+	r.y = _model.forward(_dc, x);
 	//backward prop
-	_model.backward(_dc, _loss.grad(_dc, a, y));
-
+	r.dy = _model.backward(_dc, _loss.grad(_dc, r.y, y));
 	//optimize
 	update_parameters();
 
-	//training loss
-	return _loss.loss(_dc, a, y);
+	return r;
 }
 
-vector trainer::forward_backwards(const vector& x, const vector& t)
+void trainer::train(const tensor<2>& x, const tensor<2>& y)
 {
+	assert(x.shape(0) == y.shape(0));
+
+	_dc.set_batches(x.shape(0));
+	_dc.set_mode(execution_mode::training);
 	_dc.clear_allocator();
-	_dc.set_mode(execution_mode::training);
 
-	//forward prop
-	auto y = _model.forward(_dc, x);
-	//backward prop
-	return _model.backward(_dc, _loss.grad(_dc, y, t));
-}
-
-void trainer::train_gradient(const vector& dy)
-{
-	//backward prop
-	_dc.set_mode(execution_mode::training);
-	_model.backward(_dc, dy);
-	//optimize
-	update_parameters();
+	train_batch(x, y);
 }
 
 /*************************************************************************************************************************************/

@@ -54,10 +54,8 @@ public:
 		dc.zero(_moments.as_vector());
 	}
 
-	void call(buffer& parameter, const buffer& gradient)
+	void call(vector& param, const vector& grad)
 	{
-		auto param = parameter.as_vector();
-		auto grad = gradient.as_vector();
 		auto mts = _moments.as_tensor(_layout);
 
 		/*

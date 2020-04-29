@@ -11,20 +11,12 @@
 
 namespace nn
 {
-	class trainer_routine
-	{
-	public:
+	/*
+		Model trainer class
 
-		using data = std::vector<scalar>;
-		using label = uint8_t;
-
-		virtual void iterate(span<data> x, span<label> y)
-		{
-
-		}
-	};
-
-	class trainer : public trainer_routine
+		Provides facilities for training a model with a given optimization algorithm and loss function
+	*/
+	class trainer
 	{
 		context       _dc;
 		model&        _model;
@@ -32,18 +24,26 @@ namespace nn
 
 		struct parameter
 		{
-			buffer param;
-			buffer grad;
+			vector param;
+			vector grad;
 			opt_function optimize;
 
-			parameter(const buffer& _param, const buffer& _grad, opt_function opt) :
-				param(_param), grad(_grad), optimize(std::move(opt))
+			parameter(const node_parameter& p, opt_function opt) :
+				param(p.p), grad(p.dp), optimize(std::move(opt))
 			{}
+		};
+
+		// training result
+		struct result
+		{
+			vector y;
+			vector dy;
 		};
 
 		std::vector<parameter> _parameters;
 
 		void update_parameters();
+		result train_batch(const tensor<2>& x, const tensor<2>& y);
 
 	public:
 
@@ -55,6 +55,7 @@ namespace nn
 
 		trainer(const trainer&) = delete;
 
+		// Train model on a dataset
 		void train(
 			const std::vector<data>& x_train,
 			const std::vector<label>& y_train,
@@ -64,10 +65,21 @@ namespace nn
 			uint batch_size
 		);
 
-		float train_batch(const tensor<2>& x, const tensor<2>& y);
+		// Train on a batch
+		void train(const tensor<2>& x, const tensor<2>& y);
 
-		void train_gradient(const vector& dy);
+		// Evaluation metrics
+		struct metrics
+		{
+			float loss;
+			float accuracy;
+		};
 
-		vector forward_backwards(const vector& x, const vector& y);
+		// Evaluate the model performance
+		metrics evaluate(
+			const std::vector<data>& x_test,
+			const std::vector<label>& y_test,
+			uint batch_size = 1
+		);
 	};
 }

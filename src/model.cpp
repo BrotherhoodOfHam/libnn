@@ -24,6 +24,11 @@ vector model::forward(context& dc, const vector& x)
 
 vector model::backward(context& dc, const vector& dy)
 {
+	if (_activations.empty())
+	{
+		throw std::runtime_error("A forward pass must be made before performing back propagation. Call model::forward() first");
+	}
+
 	vector dv = dy;
 
 	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
@@ -33,6 +38,36 @@ vector model::backward(context& dc, const vector& dy)
 	}
 
 	return dv;
+}
+
+/***********************************************************************************************************************/
+
+model model::immutable() const
+{
+	model immutable_this(input_shape());
+	immutable_this._nodes = this->_nodes;
+	return immutable_this;
+}
+
+model model::compose(model& next) const
+{
+	auto output = output_shape();
+	if (!std::equal(output.begin(), output.end(), next.input_shape().begin(), next.input_shape().end()))
+		throw std::runtime_error("cannot compose models with mismatched shape");
+
+	model composed(input_shape());
+	
+	for (const auto& n : _nodes)
+		composed._nodes.push_back(n);
+	for (const auto& p : _parameters)
+		composed._parameters.push_back(p);
+
+	for (const auto& n : next._nodes)
+		composed._nodes.push_back(n);
+	for (const auto& p : next._parameters)
+		composed._parameters.push_back(p);
+
+	return composed;
 }
 
 /***********************************************************************************************************************/

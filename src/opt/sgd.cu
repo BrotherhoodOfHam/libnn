@@ -36,11 +36,8 @@ struct sgd::function : public opt_function::state
 
 	function(uint param_size, float k) : _k(k) {}
 
-	void call(buffer & parameter, const buffer & gradient)
+	void call(vector& param, const vector& grad)
 	{
-		auto p = parameter.as_vector();
-		auto grad = gradient.as_vector();
-
 		/*
 		dispatch(parameter.size(), [&](uint i) {
 			p[i] -= _k * grad[i];
@@ -48,8 +45,8 @@ struct sgd::function : public opt_function::state
 		*/
 
 		int block_size = 256;
-		int block_count = (p.size() + block_size - 1) / block_size;
-		sgd_kernel<<<block_count, block_size>>>(p.size(), p.ptr(), grad.ptr(), _k);
+		int block_count = (param.size() + block_size - 1) / block_size;
+		sgd_kernel<<<block_count, block_size>>>(param.size(), param.ptr(), grad.ptr(), _k);
 	}
 };
 
@@ -67,12 +64,12 @@ struct sgd::function_with_momentum : public opt_function::state
 		dc.zero(_gradient.as_vector());
 	}
 
-	void call(buffer& parameter, const buffer& gradient)
+	void call(vector& parameter, const vector& gradient)
 	{
 		assert(parameter.size() == _gradient.size());
 
-		auto p = parameter.as_vector();
-		auto v1 = gradient.as_vector();
+		auto p = parameter;
+		auto v1 = gradient;
 		auto v0 = _gradient.as_vector(); //previous gradient
 
 		/*

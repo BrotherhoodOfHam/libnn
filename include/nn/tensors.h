@@ -16,21 +16,7 @@
 
 namespace nn
 {
-	/*************************************************************************************************************************************/
-
-	namespace internal
-	{
-		enum tensor_kind
-		{
-			is_object, // owns it's layout
-			is_proxy  // holds a reference to an existing layout
-		};
-	}
-
 	using scalar = float;
-
-	template<uint rank, typename element_type = scalar, internal::tensor_kind kind = internal::is_object>
-	class tensor;
 
 	/*************************************************************************************************************************************/
 
@@ -176,27 +162,36 @@ namespace nn
 
 	/*************************************************************************************************************************************/
 
+	enum class tensor_kind
+	{
+		is_object, // owns it's layout
+		is_slice  // holds a reference to an existing layout
+	};
+
+	template<uint rank, typename element_type = scalar, tensor_kind kind = tensor_kind::is_object>
+	class tensor;
+
 	using vector = tensor<1>;
 
 	/*
 		Tensor view class.
 		Represents an multidimensional array view on some memory
 	*/
-	template<uint rank, typename _element_type, internal::tensor_kind kind>
+	template<uint rank, typename _element_type, tensor_kind kind>
 	class tensor
 	{
 	public:
 
 		static constexpr bool is_vector = rank == 1;
 
-		using layout_type = std::conditional_t<kind == internal::is_proxy, tensor_layout_view<rank>, tensor_layout<rank>>;
+		using layout_type = std::conditional_t<kind == tensor_kind::is_slice, tensor_layout_view<rank>, tensor_layout<rank>>;
 		using element_type = _element_type;
 
 		template<uint _rank>
-		using view_type = tensor<_rank, element_type, internal::is_object>;
+		using view_type = tensor<_rank, element_type, tensor_kind::is_object>;
 
-		using slice = tensor<rank - 1, scalar, internal::is_proxy>;
-		using const_slice = tensor<rank - 1, const scalar, internal::is_proxy>;
+		using slice = tensor<rank - 1, scalar, tensor_kind::is_slice>;
+		using const_slice = tensor<rank - 1, const scalar, tensor_kind::is_slice>;
 
 		//static_assert(rank > 0, "tensor rank must be 1 or higher");
 
@@ -205,13 +200,13 @@ namespace nn
 			_ptr(ptr), _layout(layout)
 		{}
 
-		template<internal::tensor_kind _kind>
+		template<tensor_kind _kind>
 		tensor(const tensor<rank, element_type, _kind>& rhs) :
 			_ptr(rhs.ptr()),
 			_layout(rhs.layout())
 		{}
 
-		template<uint _rank, internal::tensor_kind _kind, bool _isvec = is_vector, typename = std::enable_if_t<_isvec>>
+		template<uint _rank, tensor_kind _kind, bool _isvec = is_vector, typename = std::enable_if_t<_isvec>>
 		tensor(const tensor<_rank, element_type, _kind>& rhs) :
 			_ptr(rhs.ptr()),
 			_layout(rhs.total_size())
@@ -264,7 +259,6 @@ namespace nn
 			);
 		}
 
-		//*
 		template<uint _rank = rank, typename = std::enable_if_t<(_rank == 1)>>
 		inline const element_type& operator[](uint index) const
 		{
@@ -278,7 +272,6 @@ namespace nn
 			assert(index < shape(0));
 			return _ptr[index];
 		}
-		//*/
 
 	private:
 

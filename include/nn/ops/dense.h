@@ -8,11 +8,11 @@
 
 namespace nn
 {
-	class dense_layer final : public parameterised_node
+	class dense_layer final : public node
 	{
-		tensor_layout<1> _input, _output;
-		variable<2> _w;
-		variable<1> _b;
+		tensor_layout<1>   _input, _output;
+		tensor_variable<2> _w;
+		tensor_variable<1> _b;
 
 	public:
 
@@ -24,7 +24,10 @@ namespace nn
 		vector forward(context& dc, const vector& x) override;
 		vector backward(context& dc, const vector& x, const vector& dy) override;
 
-		node_parameter get_w() const override { return _w.as_param(); }
-		node_parameter get_b() const override { return _b.as_param(); }
+		void get_parameters(std::vector<node_parameter>& parameter_list) const override
+		{
+			parameter_list.push_back(_w.as_param());
+			parameter_list.push_back(_b.as_param());
+		}
 	};
 }
