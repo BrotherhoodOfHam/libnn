@@ -72,7 +72,7 @@ int main()
 	model classifier(28*28);
 	classifier.add<dense_layer>(100);
 	classifier.add<activation::relu>();
-	//classifier.add<dropout>(0.2f);
+	classifier.add<dropout>(0.2f);
 	classifier.add<dense_layer>(32);
 	classifier.add<activation::relu>();
 	classifier.add<dense_layer>(10);

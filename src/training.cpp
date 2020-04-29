@@ -110,9 +110,6 @@ void trainer::train(
 			i_iters++;
 		});
 
-
-		pro.stop();
-
 		training_loss /= x_train.size();
 
 		auto metrics = evaluate(x_test, y_test, batch_size);
