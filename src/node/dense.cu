@@ -5,7 +5,7 @@
 #include <random>
 
 #include "device/gpu.h"
-#include "nn/ops/dense.h"
+#include "nn/node/dense.h"
 
 using namespace nn;
 
@@ -51,7 +51,7 @@ vector dense_layer::forward(scope& dc, const vector& _x)
 	*/
 }
 
-vector dense_layer::backward(scope& dc, const vector& _x, const vector& _dy)
+vector dense_layer::backward(scope& dc, const vector& _x, const vector& _y, const vector& _dy)
 {
 	auto x = dc.to_batched(_x, _input);
 	auto dy = dc.to_batched(_dy, _output);

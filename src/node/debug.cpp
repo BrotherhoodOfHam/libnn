@@ -3,7 +3,7 @@
 */
 
 #include "device/gpu.h"
-#include "nn/ops/debug.h"
+#include "nn/node/debug.h"
 
 using namespace nn;
 
@@ -23,7 +23,7 @@ vector debug_layer::forward(scope& dc, const vector& x)
 	return x;
 }
 
-vector debug_layer::backward(scope& dc, const vector& x, const vector& dy)
+vector debug_layer::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
 {
 	if (_flags & debug_flag::print_backward)
 	{

@@ -21,6 +21,6 @@ namespace nn
 		dropout(tensor_shape input_shape, float probability);
 
 		vector forward(scope& dc, const vector& x) override;
-		vector backward(scope& dc, const vector& x, const vector& dy) override;
+		vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
 	};
 }

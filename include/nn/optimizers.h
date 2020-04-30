@@ -7,7 +7,7 @@
 #include <functional>
 
 #include "tensors.h"
-#include "ops/node.h"
+#include "node/node.h"
 
 namespace nn
 {

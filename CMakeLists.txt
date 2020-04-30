@@ -71,11 +71,11 @@ file(COPY
 #################################################################################################
 
 set(libnn_headers
-    include/nn/ops/node.h
-    include/nn/ops/activations.h
-    include/nn/ops/dense.h
-	include/nn/ops/dropout.h
-	include/nn/ops/debug.h
+    include/nn/node/node.h
+    include/nn/node/activations.h
+    include/nn/node/dense.h
+	include/nn/node/dropout.h
+	include/nn/node/debug.h
     include/nn/common.h
     include/nn/tensors.h
 	include/nn/training.h
@@ -86,10 +86,10 @@ set(libnn_headers
 )
 
 set(libnn_sources
-    src/ops/activations.cu
-    src/ops/dense.cu
-	src/ops/dropout.cu
-	src/ops/debug.cpp
+    src/node/activations.cu
+    src/node/dense.cu
+	src/node/dropout.cu
+	src/node/debug.cpp
 
 	src/device/gpu.h
 	src/device/allocator.cpp

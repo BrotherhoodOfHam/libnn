@@ -67,7 +67,7 @@ namespace nn
 		virtual vector forward(scope& dc, const vector& x) = 0;
 
 		// back propagate the gradient
-		virtual vector backward(scope& dc, const vector& x, const vector& dy) = 0;
+		virtual vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) = 0;
 
 		// Enumerate any learnable parameters for this operation
 		virtual void get_parameters(std::vector<node_parameter>& parameter_list) const { }

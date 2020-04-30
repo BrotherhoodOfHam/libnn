@@ -3,7 +3,7 @@
 */
 
 #include "device/gpu.h"
-#include "nn/ops/dropout.h"
+#include "nn/node/dropout.h"
 
 using namespace nn;
 
@@ -39,7 +39,7 @@ vector dropout::forward(scope& dc, const vector& x)
 	return x;
 }
 
-vector dropout::backward(scope& dc, const vector& x, const vector& dy)
+vector dropout::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
 {
 	if (dc.is_training())
 	{

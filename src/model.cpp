@@ -34,7 +34,7 @@ vector model::backward(scope& dc, const vector& dy)
 	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
 	{
 		auto node = _nodes[i].get();
-		dv = node->backward(dc, _activations[i], dv);
+		dv = node->backward(dc, _activations[i], _activations[i + 1], dv);
 	}
 
 	return dv;

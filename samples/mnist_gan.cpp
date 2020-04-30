@@ -4,10 +4,10 @@
 
 #include "mnist/mnist_reader_less.hpp"
 
-#include "nn/ops/activations.h"
-#include "nn/ops/dense.h"
-#include "nn/ops/dropout.h"
 #include "gan.h"
+#include "nn/node/activations.h"
+#include "nn/node/dense.h"
+#include "nn/node/dropout.h"
 
 using namespace nn;
 

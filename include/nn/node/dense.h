@@ -22,7 +22,7 @@ namespace nn
 		tensor_shape output_shape() const override { return _output.shape(); }
 
 		vector forward(scope& dc, const vector& x) override;
-		vector backward(scope& dc, const vector& x, const vector& dy) override;
+		vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
 
 		void get_parameters(std::vector<node_parameter>& parameter_list) const override
 		{
