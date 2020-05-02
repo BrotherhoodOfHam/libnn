@@ -117,7 +117,7 @@ namespace nn
 
         void random_uniform(vector x);
         void random_normal(vector x, float sdv, float mean);
-        void random_bernoulli(vector x, float probability);
+        void random_bernoulli(vector x, float probability, float value = 1.0f);
     };
 
     /*

@@ -14,15 +14,13 @@ using namespace nn;
 
 /*************************************************************************************************************************************/
 
-__global__ void RNG_bernoulli_kernel(float* x, uint n, rng::seed_type seed, float p)
+// x is an array of uniformly distributed random numbers that we will transform
+__global__ void RNG_bernoulli_kernel(float* x, uint n, float p, float v)
 {
     uint i = global_index();
     if (i < n)
     {
-        curandState local_state;
-        curand_init(seed, threadIdx.x, 0, &local_state);
-
-        x[i] = (curand_uniform(&local_state) < p) ? 1.0f : 0.0f;
+        x[i] = (x[i] < p) ? v : 0.0f;
     }
 }
 
@@ -81,15 +79,14 @@ void rng::random_normal(vector x, float sdv, float mean)
     check(curandGenerateNormal(_prng, x.ptr(), x.size(), mean, sdv));
 }
 
-void rng::random_bernoulli(vector x, float probability)
+void rng::random_bernoulli(vector x, float probability, float value)
 {
+    check(curandGenerateUniform(_prng, x.ptr(), x.size()));
+    
     uint block_size = 256;
     uint block_count = ((uint)x.size() + block_size - 1) / block_size;
 
-    //curandGenerateBinomial(_prng, x.ptr(), x.size(), 1u, (double)probability);
-
-    seed_type seed = std::random_device()();
-    RNG_bernoulli_kernel<<<block_count, block_size>>>(x.ptr(), x.size(), seed, probability);
+    RNG_bernoulli_kernel<<<block_count, block_size>>>(x.ptr(), x.size(), probability, value);
 }
 
 /*************************************************************************************************************************************/

@@ -28,8 +28,9 @@ vector dropout::forward(scope& dc, const vector& x)
 		*/
 
 		// generate random dropout values
+		float p = 1.0f - _probability;
 		_dropout = dc.alloc(x.size());
-		_rng.random_bernoulli(_dropout, 1.0f - _probability);
+		_rng.random_bernoulli(_dropout, p, 1.0f / p);
 
 		auto y = dc.alloc(x.size());
 		dc.vector_mul(y, _dropout, x);
