@@ -10,7 +10,7 @@ using namespace nn;
 
 batch model::execute(const batch& x)
 {
-	auto scope = device::get().scope(execution_mode::execute, x.shape(0));
+	auto scope = device::begin(execution_mode::execute, x.shape(0));
 	auto y = forward(scope, x);
 	_activations.clear();
 	return y;
@@ -39,10 +39,9 @@ batch model::backward(scope& dc, const batch& dy)
 
 	batch dv = dy;
 
-	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
+	for (long i = (long)_nodes.size() - 1; i >= 0; i--)
 	{
-		auto node = _nodes[i].get();
-		dv = node->backward(dc, _activations[i], _activations[i + 1], dv);
+		dv = _nodes[i]->backward(dc, _activations[i], _activations[i + 1], dv);
 	}
 
 	return dv;

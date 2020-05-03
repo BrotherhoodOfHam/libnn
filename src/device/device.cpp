@@ -45,14 +45,15 @@ void scope::check() const
     assert(_d != nullptr);
 }
 
-scope device::scope(execution_mode mode, uint batch_size)
+scope device::begin(execution_mode mode, uint batch_size)
 {
-    if (_in_scope)
+    auto& d = get();
+    if (d._in_scope)
     {
         throw std::runtime_error("The scope cannot be aquired");
     }
-    _in_scope = true;
-    return nn::scope(this, &_scope_pool, mode, batch_size);
+    d._in_scope = true;
+    return nn::scope(&d, &d._scope_pool, mode, batch_size);
 }
 
 /*************************************************************************************************************************************/

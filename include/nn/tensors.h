@@ -221,7 +221,7 @@ namespace nn
 		template<uint dims>
 		view_type<dims> reshape(const tensor_layout<dims>& ly) const
 		{
-			assert(ly.datasize() == datasize());
+			assert(ly.datasize() == size());
 			return view_type<dims>(_ptr, ly);
 		}
 

@@ -178,7 +178,7 @@ namespace nn
     /*
         Device variable scope.
 
-        Allows temporary memory allocation. When the scope is destroyed the memory should not be accessed.
+        Allows temporary memory allocation. When the object is destroyed the memory should no longer be accessed.
     */
     class scope : public ops
     {
@@ -245,9 +245,9 @@ namespace nn
         device(const device&) = delete;
         device(device&&) = delete;
 
-        // Enter a variable scope.
+        // Begin the context.
         // There can only be one instance at a time
-        scope scope(execution_mode mode, uint batch_size);
+        static scope begin(execution_mode mode, uint batch_size);
 
         void random_uniform(vector x) { _rng.random_uniform(x); }
         void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f) { _rng.random_normal(x, sdv, mean); }

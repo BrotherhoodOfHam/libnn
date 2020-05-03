@@ -69,7 +69,7 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 			if (batch_index == 0 && i > 0)
 			{
 				progress.next();
-				auto dc = dev.scope(execution_mode::training, batch_size);
+				auto dc = device::begin(execution_mode::training, batch_size);
 
 				//randomize z
 				dc.random_uniform(z_input);
@@ -113,7 +113,7 @@ void GAN::save_generated_images(uint id, const batch& z_batch)
 	tensor_layout<2> img_layout(z_batch.shape(0), 28 * 28);
 	std::vector<scalar> gen_image;
 
-	auto dc = device::get().scope(execution_mode::execute, z_batch.shape(0));
+	auto dc = device::begin(execution_mode::execute, z_batch.shape(0));
 
 	auto g = _g.forward(dc, z_batch).reshape(img_layout);
 	dc.read(g, gen_image);

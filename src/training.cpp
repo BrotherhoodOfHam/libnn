@@ -93,7 +93,7 @@ void trainer::train(
 		{
 			pro.next();
 
-			auto dc = device::get().scope(execution_mode::training, batch_size);
+			auto dc = device::begin(execution_mode::training, batch_size);
 
 			auto x  = dc.batch_alloc(input_size);
 			auto y  = dc.batch_alloc(output_size);
@@ -137,7 +137,7 @@ trainer::metrics trainer::evaluate(
 
 	foreach_random_batch(_model, batch_size, x_test, y_test, [&](auto input, auto target)
 	{
-		auto dc = device::get().scope(execution_mode::execute, batch_size);
+		auto dc = device::begin(execution_mode::execute, batch_size);
 
 		auto t = dc.batch_alloc(output_size);
 		auto x = dc.batch_alloc(input_size);
