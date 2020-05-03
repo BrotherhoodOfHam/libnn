@@ -21,13 +21,13 @@ namespace nn
 		tensor_shape input_shape() const override { return _input.shape(); }
 		tensor_shape output_shape() const override { return _output.shape(); }
 
-		vector forward(scope& dc, const vector& x) override;
-		vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+		batch forward(scope& dc, const batch& x) override;
+		batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 
 		void get_parameters(std::vector<node_parameter>& parameter_list) const override
 		{
-			parameter_list.push_back(_w.as_param());
-			parameter_list.push_back(_b.as_param());
+			parameter_list.push_back(_w);
+			parameter_list.push_back(_b);
 		}
 	};
 }

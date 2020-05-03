@@ -26,7 +26,7 @@ namespace nn
 
 		debug_layer(tensor_shape shape, debug_flag flags = debug_flag::print_all);
 
-		vector forward(scope& dc, const vector& x) override;
-		vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+		batch forward(scope& dc, const batch& x) override;
+		batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 	};
 }

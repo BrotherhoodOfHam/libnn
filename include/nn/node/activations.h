@@ -18,8 +18,8 @@ namespace nn
 
 			using uniform_node::uniform_node;
 
-			vector forward(scope& dc, const vector& x) override;
-			vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+			batch forward(scope& dc, const batch& x) override;
+			batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 		};
 
 		// TanH function:
@@ -30,8 +30,8 @@ namespace nn
 
 			using uniform_node::uniform_node;
 
-			vector forward(scope& dc, const vector& x) override;
-			vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+			batch forward(scope& dc, const batch& x) override;
+			batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 		};
 
 		// Rectified Linear Unit function:
@@ -42,8 +42,8 @@ namespace nn
 
 			using uniform_node::uniform_node;
 
-			vector forward(scope& dc, const vector& x) override;
-			vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+			batch forward(scope& dc, const batch& x) override;
+			batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 		};
 
 		// Leaky Rectified Linear Unit function:
@@ -61,8 +61,8 @@ namespace nn
 				_leakiness(leakiness)
 			{}
 
-			vector forward(scope& dc, const vector& x) override;
-			vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+			batch forward(scope& dc, const batch& x) override;
+			batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 		};
 
 		// Softmax function:
@@ -73,8 +73,8 @@ namespace nn
 
 			using uniform_node::uniform_node;
 
-			vector forward(scope& dc, const vector& x) override;
-			vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) override;
+			batch forward(scope& dc, const batch& x) override;
+			batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 		};
 	}
 }

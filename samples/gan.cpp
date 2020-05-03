@@ -33,9 +33,9 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 	trainer gopt(gan, opt, loss);
 	trainer dopt(_d,  opt, loss);
 
-	tensor_layout<2> input_layout(batch_size,  _g.input_shape().total_size());
-	tensor_layout<2> image_layout(batch_size,  _g.output_shape().total_size());
-	tensor_layout<2> output_layout(batch_size, _d.output_shape().total_size());
+	tensor_layout<2> input_layout(batch_size,  _g.input_shape().datasize());
+	tensor_layout<2> image_layout(batch_size,  _g.output_shape().datasize());
+	tensor_layout<2> output_layout(batch_size, _d.output_shape().datasize());
 
 	auto z_input    = _constants.alloc(input_layout);
 	auto real_input = _constants.alloc(image_layout);
@@ -51,7 +51,6 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 	auto rng = new_random_engine();
 	std::vector<size_t> indices(data.size());
 	std::iota(indices.begin(), indices.end(), 0);
-
 
 	for (uint e = 0; e < epochs; e++)
 	{
@@ -79,7 +78,7 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 				dopt.train_batch(dc, real_input, y_d_1);
 
 				//train discriminator on generated batch
-				auto g_output = _g.forward(dc, z_input.flatten()).reshape(image_layout);
+				auto g_output = _g.forward(dc, z_input).reshape(image_layout);
 				dopt.train_batch(dc, g_output, y_d_0);
 
 				//randomize z
@@ -99,7 +98,7 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 
 /*************************************************************************************************************************************/
 
-void GAN::save_generated_images(uint id, const tensor<2>& z_batch)
+void GAN::save_generated_images(uint id, const batch& z_batch)
 {
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
 

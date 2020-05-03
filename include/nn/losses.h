@@ -5,6 +5,7 @@
 #pragma once
 
 #include "device.h"
+#include "node/node.h"
 
 namespace nn
 {

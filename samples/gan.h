@@ -25,6 +25,6 @@ namespace nn
 
 	private:
 
-		void save_generated_images(uint id, const tensor<2>& z_batch);
+		void save_generated_images(uint id, const batch& z_batch);
 	};
 }

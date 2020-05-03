@@ -13,22 +13,20 @@ debug_layer::debug_layer(tensor_shape shape, debug_flag flags) :
 	uniform_node(shape), _flags(flags)
 {}
 
-vector debug_layer::forward(scope& dc, const vector& x)
+batch debug_layer::forward(scope& dc, const batch& x)
 {
 	if (_flags & debug_flag::print_forward)
 	{
-		auto _x = dc.to_batched(x, tensor_layout<1>(input_shape().total_size()));
-		debug_print("forward:", _x);
+		debug_print("forward:", x);
 	}
 	return x;
 }
 
-vector debug_layer::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch debug_layer::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	if (_flags & debug_flag::print_backward)
 	{
-		auto _dy = dc.to_batched(dy, tensor_layout<1>(output_shape().total_size()));
-		debug_print("backward:", _dy);
+		debug_print("backward:", dy);
 	}
 	return dy;
 }

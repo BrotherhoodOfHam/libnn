@@ -22,7 +22,7 @@ namespace nn
 
 		std::vector<std::shared_ptr<node>>	_nodes;
 		std::vector<node_parameter>			_parameters;
-		std::vector<vector>					_activations;
+		std::vector<batch>					_activations;
 		dynamic_tensor_shape				_input_shape;
 
 	public:
@@ -40,8 +40,11 @@ namespace nn
 		tensor_shape output_shape() const { return _nodes.empty() ? tensor_shape(_input_shape) : _nodes.back()->output_shape(); }
 
 		// Forward and backward functions
-		vector forward(scope& dc, const vector& x);
-		vector backward(scope& dc, const vector& dy);
+		batch forward(scope& dc, const batch& x);
+		batch backward(scope& dc, const batch& dy);
+
+		batch execute(const batch& x);
+		batch operator()(const batch& x) { return execute(x); }
 
 		// Return the learnable parameters of this model
 		const std::vector<node_parameter>& parameters() { return _parameters; }

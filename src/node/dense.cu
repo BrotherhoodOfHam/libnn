@@ -25,9 +25,8 @@ dense_layer::dense_layer(tensor_shape input_shape, uint layer_size) :
 	d.random_normal(_w.v(), 1.0f / sqrtn);
 }
 
-vector dense_layer::forward(scope& dc, const vector& _x)
+batch dense_layer::forward(scope& dc, const batch& x)
 {
-	auto x = dc.to_batched(_x, _input);
 	auto y = dc.batch_alloc(_output);
 
 	dc.matrix_set_rows(y, _b.v());
@@ -51,10 +50,8 @@ vector dense_layer::forward(scope& dc, const vector& _x)
 	*/
 }
 
-vector dense_layer::backward(scope& dc, const vector& _x, const vector& _y, const vector& _dy)
+batch dense_layer::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
-	auto x = dc.to_batched(_x, _input);
-	auto dy = dc.to_batched(_dy, _output);
 	auto dx = dc.batch_alloc(_input);
 
 	tensor<2> dw = _w.dv();

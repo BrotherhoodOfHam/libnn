@@ -58,7 +58,7 @@ bool model::serialize(const std::string& filename)
 			write<uint>(f, i);
 
 		// write size of tensor
-		write<uint>(f, p.shape().total_size());
+		write<uint>(f, p.shape().datasize());
 
 		// write data
 		d.read(p, param_buffer);
@@ -119,9 +119,9 @@ bool model::deserialize(const std::string& filename)
 
 		// read size of tensor
 		uint parameter_size = read<uint>(f);
-		if (parameter_size != p.total_size())
+		if (parameter_size != p.size())
 		{
-			std::cout << "parameter count does not match: " << parameter_size << " != " << p.total_size() << std::endl;
+			std::cout << "parameter count does not match: " << parameter_size << " != " << p.size() << std::endl;
 		}
 
 		// read tensor data

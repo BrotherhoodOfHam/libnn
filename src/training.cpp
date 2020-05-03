@@ -74,8 +74,8 @@ void trainer::train(
 	assert(x_train.size() == y_train.size());
 	assert(x_test.size() == y_test.size());
 
-	uint input_size  = _model.input_shape().total_size();
-	uint output_size = _model.output_shape().total_size();
+	uint input_size  = _model.input_shape().datasize();
+	uint output_size = _model.output_shape().datasize();
 
 	for (size_t ep = 0; ep < epochs; ep++)
 	{
@@ -130,8 +130,8 @@ trainer::metrics trainer::evaluate(
 	mt.loss = 0;
 	uint correct = 0;
 
-	uint input_size = _model.input_shape().total_size();
-	uint output_size = _model.output_shape().total_size();
+	uint input_size = _model.input_shape().datasize();
+	uint output_size = _model.output_shape().datasize();
 
 	std::vector<scalar> pred_buf;
 
@@ -169,13 +169,13 @@ trainer::metrics trainer::evaluate(
 	return mt;
 }
 
-trainer::result trainer::train_batch(scope& dc, const tensor<2>& x, const tensor<2>& y)
+trainer::result trainer::train_batch(scope& dc, const batch& x, const batch& y)
 {
 	result r;
 	//forward prop
 	r.y = _model.forward(dc, x);
 	//backward prop
-	r.dy = _model.backward(dc, _loss.grad(dc, r.y, y));
+	r.dy = _model.backward(dc, _loss.grad(dc, r.y, y).reshape(y.layout()));
 	//optimize
 	update_parameters();
 
@@ -233,7 +233,7 @@ void nn::foreach_random_batch(model& m, uint batch_size, const std::vector<train
 
 	auto rng = new_random_engine();
 
-	auto number_of_classes = m.output_shape().total_size();
+	auto number_of_classes = m.output_shape().datasize();
 
 	std::vector<size_t> indices(dataset.size());
 	std::vector<scalar> x;

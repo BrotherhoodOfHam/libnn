@@ -44,7 +44,7 @@ namespace nn
         bool is_empty() const { return _size == 0; }
 
         template<uint dims>
-        tensor<dims> as_tensor(const tensor_layout<dims>& l) const { assert(l.total_size() == _size);  return tensor<dims>(_ptr.get(), l); }
+        tensor<dims> as_tensor(const tensor_layout<dims>& l) const { assert(l.datasize() == _size);  return tensor<dims>(_ptr.get(), l); }
         vector as_vector() const { return vector(_ptr.get(), tensor_layout<1>(_size)); }
     };
 
@@ -86,7 +86,7 @@ namespace nn
         template<uint n>
         tensor<n> alloc(const tensor_layout<n>& shape)
         {
-            scalar* ptr = (scalar*)alloc_bytes(sizeof(scalar) * shape.total_size());
+            scalar* ptr = (scalar*)alloc_bytes(sizeof(scalar) * shape.datasize());
             return tensor<n>(ptr, shape);
         }
 
@@ -206,12 +206,6 @@ namespace nn
         // inherit device behaviour
         inline void random_uniform(vector x);
         inline void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f);
-
-        template<uint n>
-        tensor<n + 1> to_batched(const vector& x, const tensor_layout<n>& ly)
-        {
-            return x.reshape(tensor_layout<n + 1>(_batch_size, ly));
-        }
 
         template<uint n>
         tensor<n+1> batch_alloc(const tensor_layout<n>& ly) { return _pool->alloc(tensor_layout<n + 1>(_batch_size, ly)); }

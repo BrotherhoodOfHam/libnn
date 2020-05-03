@@ -8,28 +8,36 @@ using namespace nn;
 
 /***********************************************************************************************************************/
 
-vector model::forward(scope& dc, const vector& x)
+batch model::execute(const batch& x)
+{
+	auto scope = device::get().scope(execution_mode::execute, x.shape(0));
+	auto y = forward(scope, x);
+	_activations.clear();
+	return y;
+}
+
+batch model::forward(scope& dc, const batch& x)
 {
 	_activations.clear();
 	_activations.push_back(x);
 
 	for (auto& node : _nodes)
 	{
-		const vector& y = node->forward(dc, _activations.back());
+		const batch& y = node->forward(dc, _activations.back());
 		_activations.push_back(y);
 	}
 
 	return _activations.back();
 }
 
-vector model::backward(scope& dc, const vector& dy)
+batch model::backward(scope& dc, const batch& dy)
 {
 	if (_activations.empty())
 	{
 		throw std::runtime_error("A forward pass must be made before performing back propagation. Call model::forward() first");
 	}
 
-	vector dv = dy;
+	batch dv = dy;
 
 	for (int i = (int)_nodes.size() - 1; i >= 0; i--)
 	{

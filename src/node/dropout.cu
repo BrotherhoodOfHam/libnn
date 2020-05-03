@@ -14,7 +14,7 @@ dropout::dropout(tensor_shape input_shape, float probability) :
 	uniform_node(input_shape)
 {}
 
-vector dropout::forward(scope& dc, const vector& x)
+batch dropout::forward(scope& dc, const batch& x)
 {
 	if (dc.is_training())
 	{
@@ -34,13 +34,13 @@ vector dropout::forward(scope& dc, const vector& x)
 
 		auto y = dc.alloc(x.size());
 		dc.vector_mul(y, _dropout, x);
-		return y;
+		return y.reshape(x.layout());
 	}
 
 	return x;
 }
 
-vector dropout::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch dropout::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	if (dc.is_training())
 	{
@@ -52,7 +52,7 @@ vector dropout::backward(scope& dc, const vector& x, const vector& y, const vect
 
 		auto dx = dc.alloc(x.size());
 		dc.vector_mul(dx, _dropout, dy);
-		return dx;
+		return dx.reshape(x.layout());
 	}
 
 	return dy;

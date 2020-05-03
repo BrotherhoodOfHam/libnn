@@ -34,20 +34,41 @@ namespace nn
 		template<typename ... args_t, typename = std::enable_if_t<rank == (sizeof...(args_t) + 1)>>
 		tensor_variable(uint shape0, args_t ... shape) :
 			_layout(shape0, (uint)shape...),
-			_dv(_layout.total_size()),
-			_v(_layout.total_size())
+			_dv(_layout.datasize()),
+			_v(_layout.datasize())
 		{}
 
-		inline uint size() const { return _layout.shape(0); }
-		inline uint total_size() const { return _layout.total_size(); }
+		inline uint size() const { return _layout.datasize(); }
 		inline uint shape(uint i) const { return _layout.shape(i); }
 		inline tensor_shape shape() const { return _layout.shape(); }
 		inline tensor_layout_view<rank> layout() const { return _layout; }
 
-		node_parameter as_param() const { return node_parameter(_v.as_vector(), _dv.as_vector()); }
+		operator node_parameter() const { return node_parameter(_v.as_vector(), _dv.as_vector()); }
 
 		inline tensor_slice v() const { return tensor_slice(_v.ptr(), layout()); }
 		inline tensor_slice dv() const { return tensor_slice(_dv.ptr(), layout()); }
+	};
+
+	/*
+		input/output tensor batch.
+	*/
+	class batch : public tensor<2>
+	{
+	public:
+
+		using tensor::tensor;
+
+		template<uint n>
+		tensor<n + 1> batch_reshape(const tensor_layout<n>& ly) const
+		{
+			return this->reshape(tensor_layout<n + 1>(this->shape(0), ly));
+		}
+
+		template<class ... args_t, uint n = 1 + sizeof...(args_t)>
+		tensor<n + 1> batch_reshape(uint shape0, args_t ... shape) const
+		{
+			return this->batch_reshape(tensor_layout<n>(shape0, shape...));
+		}
 	};
 
 	/*
@@ -64,10 +85,10 @@ namespace nn
 		virtual tensor_shape output_shape() const = 0;
 
 		// forward propagate
-		virtual vector forward(scope& dc, const vector& x) = 0;
+		virtual batch forward(scope& dc, const batch& x) = 0;
 
 		// back propagate the gradient
-		virtual vector backward(scope& dc, const vector& x, const vector& y, const vector& dy) = 0;
+		virtual batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) = 0;
 
 		// Enumerate any learnable parameters for this operation
 		virtual void get_parameters(std::vector<node_parameter>& parameter_list) const { }

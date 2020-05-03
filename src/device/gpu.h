@@ -87,7 +87,7 @@ namespace nn
     inline void debug_print(const tensor<rank>& t)
     {
         check(cudaDeviceSynchronize());
-        std::vector<scalar> _buf(t.total_size());
+        std::vector<scalar> _buf(t.size());
         check(cudaMemcpy(_buf.data(), t.ptr(), _buf.size() * sizeof(scalar), cudaMemcpyDeviceToHost));
 
         std::cout << "shape = (";

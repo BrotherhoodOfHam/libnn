@@ -33,9 +33,9 @@ __global__ void activation_d_kernel(uint n, scalar* dx, const scalar* x, const s
 }
 
 template<scalar(func)(scalar)>
-static vector launch(scope& dc, const vector& x)
+static batch launch(scope& dc, const batch& x)
 {
-	auto y = dc.alloc(x.size());
+	auto y = dc.alloc(x.layout());
 
 	uint block_size = 256;
 	uint block_count = (x.size() + block_size - 1) / block_size;
@@ -45,9 +45,9 @@ static vector launch(scope& dc, const vector& x)
 }
 
 template<scalar(func)(scalar, scalar, scalar)>
-static vector launch(scope& dc, const vector& x, const vector& y, const vector& dy)
+static batch launch(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
-	auto dx = dc.alloc(x.size());
+	auto dx = dc.alloc(x.layout());
 
 	uint block_size = 256;
 	uint block_count = (x.size() + block_size - 1) / block_size;
@@ -69,7 +69,7 @@ __device__ scalar sigmoid_d_func(scalar x, scalar y, scalar dy)
 	return (y * (1.0f - y)) * dy;
 }
 
-vector activation::sigmoid::forward(scope& dc, const vector& x)
+batch activation::sigmoid::forward(scope& dc, const batch& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -79,7 +79,7 @@ vector activation::sigmoid::forward(scope& dc, const vector& x)
 	return launch<sigmoid_func>(dc, x);
 }
 
-vector activation::sigmoid::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch activation::sigmoid::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	/*
 	// σ'(x) = σ(x) * (1 - σ(x))
@@ -104,7 +104,7 @@ __device__ scalar tanh_d_func(scalar x, scalar y, scalar dy)
 	return (1 - (y * y)) * dy;
 }
 
-vector activation::tanh::forward(scope& dc, const vector& x)
+batch activation::tanh::forward(scope& dc, const batch& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -116,7 +116,7 @@ vector activation::tanh::forward(scope& dc, const vector& x)
 	return launch<tanh_func>(dc, x);
 }
 
-vector activation::tanh::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch activation::tanh::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	/*
 	// tanh'(x) = 1 - tanh(x)^2
@@ -139,7 +139,7 @@ __device__ scalar relu_d_func(scalar x, scalar y, scalar dy)
 	return (x > 0.0f) ? dy : 0;
 }
 
-vector activation::relu::forward(scope& dc, const vector& x)
+batch activation::relu::forward(scope& dc, const batch& x)
 {
 	/*
 	return activate(x, [](scalar x) {
@@ -149,7 +149,7 @@ vector activation::relu::forward(scope& dc, const vector& x)
 	return launch<relu_func>(dc, x);
 }
 
-vector activation::relu::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch activation::relu::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	/*
 	return derivative(x, dy, [](scalar x, scalar y, scalar dy, scalar dx) {
@@ -179,14 +179,14 @@ __global__ void leaky_relu_d_kernel(uint n, scalar* dx, const scalar* x, const s
 	}
 }
 
-vector activation::leaky_relu::forward(scope& dc, const vector& x)
+batch activation::leaky_relu::forward(scope& dc, const batch& x)
 {
 	/*
 	return activate(x, [=](scalar x) {
 		return (x > 0) ? x : _leakiness * x;
 	});
 	*/
-	auto y = dc.alloc(x.size());
+	auto y = dc.alloc(x.layout());
 
 	uint block_size = 256;
 	uint block_count = (x.size() + block_size - 1) / block_size;
@@ -196,14 +196,14 @@ vector activation::leaky_relu::forward(scope& dc, const vector& x)
 	return y;
 }
 
-vector activation::leaky_relu::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch activation::leaky_relu::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	/*
 	return derivative(x, dy, [=](scalar x, scalar y, scalar dy, scalar dx) {
 		return ((x > 0) ? 1.0f : _leakiness) * dy;
 	});
 	*/
-	auto dx = dc.alloc(x.size());
+	auto dx = dc.alloc(x.layout());
 
 	uint block_size = 256;
 	uint block_count = (x.size() + block_size - 1) / block_size;
@@ -270,7 +270,7 @@ __global__ void softmax_d_kernel(uint b, uint n, scalar* _dx, const scalar* _y, 
 	}
 }
 
-vector activation::softmax::forward(scope& dc, const vector& x)
+batch activation::softmax::forward(scope& dc, const batch& x)
 {
 	/*
 	auto x = _x.as_vector();
@@ -296,7 +296,7 @@ vector activation::softmax::forward(scope& dc, const vector& x)
 	return y.data();
 	*/
 
-	auto y = dc.alloc(x.size());
+	auto y = dc.alloc(x.layout());
 
 	uint block_size = 32;
 	uint block_count = (x.size() + block_size - 1) / block_size;
@@ -308,7 +308,7 @@ vector activation::softmax::forward(scope& dc, const vector& x)
 	return y;
 }
 
-vector activation::softmax::backward(scope& dc, const vector& x, const vector& y, const vector& dy)
+batch activation::softmax::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
 	/*
 	auto dy = _dy.as_vector();
@@ -329,7 +329,7 @@ vector activation::softmax::backward(scope& dc, const vector& x, const vector& y
 	return dx.data();
 	*/
 
-	auto dx = dc.alloc(x.size());
+	auto dx = dc.alloc(x.layout());
 
 	uint b = dc.batch_size();
 	uint n = x.size() / b;

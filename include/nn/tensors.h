@@ -30,7 +30,7 @@ namespace nn
 
 		operator std::vector<uint>() { return std::vector<uint>(begin(), end()); }
 
-		uint total_size() const
+		uint datasize() const
 		{
 			uint total = 1;
 			for (uint i : *this)
@@ -87,7 +87,7 @@ namespace nn
 
 		tensor_shape shape() const { return tensor_shape(_shape, _shape + dims); }
 		tensor_shape strides() const { return tensor_shape(_strides, _strides + dims); }
-		uint total_size() const { return _strides[0] * _shape[0]; }
+		uint datasize() const { return _strides[0] * _shape[0]; }
 
 		uint operator[](uint i) const { return shape(i); }
 	};
@@ -115,7 +115,7 @@ namespace nn
 		tensor_layout() = default;
 		tensor_layout(const tensor_layout&) = default;
 
-		explicit tensor_layout(const tensor_layout_view<dims>& view)
+		tensor_layout(const tensor_layout_view<dims>& view)
 		{
 			std::copy(view.shape().begin(), view.shape().end(), _shape.begin());
 			std::copy(view.strides().begin(), view.strides().end(), _strides.begin());
@@ -149,7 +149,7 @@ namespace nn
 
 		tensor_shape shape() const { return tensor_shape(_shape); }
 		tensor_shape strides() const { return tensor_shape(_strides); }
-		uint total_size() const { return _strides[0] * _shape[0]; }
+		uint datasize() const { return _strides[0] * _shape[0]; }
 
 		uint operator[](uint i) const { return shape(i); }
 	};
@@ -209,13 +209,19 @@ namespace nn
 		template<uint _rank, tensor_kind _kind, bool _isvec = is_vector, typename = std::enable_if_t<_isvec>>
 		tensor(const tensor<_rank, element_type, _kind>& rhs) :
 			_ptr(rhs.ptr()),
-			_layout(rhs.total_size())
+			_layout(rhs.size())
 		{}
+
+		template<uint dims>
+		view_type<dims> reshape(const tensor_layout_view<dims>& ly) const
+		{
+			return reshape(tensor_layout<dims>(ly));
+		}
 
 		template<uint dims>
 		view_type<dims> reshape(const tensor_layout<dims>& ly) const
 		{
-			assert(ly.total_size() == total_size());
+			assert(ly.datasize() == datasize());
 			return view_type<dims>(_ptr, ly);
 		}
 
@@ -223,21 +229,18 @@ namespace nn
 		view_type<dims> reshape(uint shape0, args_t ... shape) const
 		{
 			tensor_layout<dims> ly(shape0, shape...);
-			assert(ly.total_size() == total_size());
+			assert(ly.datasize() == datasize());
 			return view_type<dims>(_ptr, ly);
 		}
 
-		vector flatten() const { return vector(_ptr, nn::tensor_layout<1>(_layout.total_size())); }
+		vector flatten() const { return vector(_ptr, nn::tensor_layout<1>(_layout.datasize())); }
 		
 		inline scalar* ptr() const { return _ptr; }
-		inline uint total_size() const { return _layout.total_size(); }
 		inline uint shape(uint i) const { return _layout.shape(i); }
 		inline uint stride(uint i) const { return _layout.stride(i); }
 		inline tensor_shape shape() const { return _layout.shape(); }
-		inline tensor_layout_view<rank> layout() const { return tensor_layout_view<rank>(_layout); }
-
-		template<uint _rank = rank, typename = std::enable_if_t<_rank == 1>>
-		inline uint size() const { return _layout.shape(0); }
+		inline tensor_layout<rank> layout() const { return _layout; }
+		inline uint size() const { return _layout.datasize(); }
 
 		template<uint _rank = rank, typename = std::enable_if_t<(_rank > 1)>>
 		inline const_slice operator[](uint index) const

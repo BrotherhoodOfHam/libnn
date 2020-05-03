@@ -59,12 +59,12 @@ namespace nn
 		// training result
 		struct result
 		{
-			vector y;
-			vector dy;
+			batch y;
+			batch dy;
 		};
 
 		// Train on a batch
-		result train_batch(scope& dc, const tensor<2>& x, const tensor<2>& y);
+		result train_batch(scope& dc, const batch& x, const batch& y);
 
 		// Evaluation metrics
 		struct metrics
