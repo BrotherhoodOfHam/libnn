@@ -81,10 +81,9 @@ void trainer::train(
 	{
 		std::cout << time_stamp << " epoch " << ep << ":" << std::endl;
 
-		auto first = std::chrono::system_clock::now();
-		auto last = first;
-		uint i_count = 0;
-		uint i_iters = 0;
+		using namespace std::chrono;
+
+		auto first = high_resolution_clock::now();
 		float training_loss = 0.0f;
 
 		progress_printer pro(x_train.size() / batch_size);
@@ -105,18 +104,17 @@ void trainer::train(
 			auto r = train_batch(dc, x, y);
 
 			training_loss += _loss.loss(dc, r.y, y);
-
-			i_count++;
-			i_iters++;
 		});
 
 		training_loss /= x_train.size();
 
 		auto metrics = evaluate(x_test, y_test, batch_size);
-
+		
 		std::cout << "training loss: " << training_loss
 			<< " | loss: " << metrics.loss
-			<< " | accuracy: " << metrics.accuracy << std::endl;
+			<< " | accuracy: " << metrics.accuracy
+			<< " | elapsed time: " << (double)duration_cast<milliseconds>(high_resolution_clock::now() - first).count() / 1000.0 << "s"
+			<< std::endl;
 	}
 }
 

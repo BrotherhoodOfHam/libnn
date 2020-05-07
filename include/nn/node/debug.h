@@ -29,4 +29,33 @@ namespace nn
 		batch forward(scope& dc, const batch& x) override;
 		batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override;
 	};
+
+	class debug_callback final : public uniform_node
+	{
+	public:
+
+		using callback_type = std::function<void(const batch&)>;
+
+		debug_callback(tensor_shape shape, const callback_type& fwd_callback, const callback_type& dv_callback = [](auto x){}) :
+			_f_callback(fwd_callback),
+			_d_callback(dv_callback),
+			uniform_node(shape)
+		{}
+
+		batch forward(scope& dc, const batch& x) override
+		{
+			_f_callback(x);
+			return x;
+		}
+
+		batch backward(scope& dc, const batch& x, const batch& y, const batch& dy) override
+		{
+			_d_callback(dy);
+			return dy;
+		}
+
+	private:
+
+		callback_type _f_callback, _d_callback;
+	};
 }

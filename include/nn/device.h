@@ -121,6 +121,24 @@ namespace nn
     };
 
     /*
+        Device timer
+    */
+    class device_timer
+    {
+        void* _start;
+        void* _stop;
+
+    public:
+
+        device_timer();
+        ~device_timer();
+
+        void start();
+        float stop();
+    };
+
+
+    /*
         Stateless functions for manipulating vectors and tensors
     */
     class ops

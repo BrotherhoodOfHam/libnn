@@ -1,6 +1,7 @@
 *.suo
 *.user
 *.bmp
+*.pyc
 .vs
 .vscode
 build/

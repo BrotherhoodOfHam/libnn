@@ -57,3 +57,36 @@ scope device::begin(execution_mode mode, uint batch_size)
 }
 
 /*************************************************************************************************************************************/
+
+device_timer::device_timer()
+{
+    check(cudaEventCreate((cudaEvent_t*)&_start));
+    check(cudaEventCreate((cudaEvent_t*)&_stop));
+}
+
+device_timer::~device_timer()
+{
+    check(cudaEventDestroy((cudaEvent_t)_start));
+    check(cudaEventDestroy((cudaEvent_t)_stop));
+}
+
+void device_timer::start()
+{
+    check(cudaEventRecord((cudaEvent_t)_start));
+}
+
+float device_timer::stop()
+{
+    check(cudaEventRecord((cudaEvent_t)_stop));
+
+    check(cudaEventSynchronize((cudaEvent_t)_stop));
+    
+    float ms = 0.0f;
+    check(cudaEventElapsedTime(&ms, (cudaEvent_t)_start, (cudaEvent_t)_stop));
+
+    check(cudaDeviceSynchronize());
+
+    return ms;
+}
+
+/*************************************************************************************************************************************/

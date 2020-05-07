@@ -63,9 +63,9 @@ namespace nn
 		uint length() const { return (uint)_nodes.size(); }
 
 		// Serialize parameters to file
-		bool serialize(const std::string& filename);
+		void serialize(const std::string& filename);
 		// Deserialize parameters from file
-		bool deserialize(const std::string& filename);
+		void deserialize(const std::string& filename);
 
 		// Return an immutable copy of this model, meaning it's parameters are hidden
 		model immutable() const;

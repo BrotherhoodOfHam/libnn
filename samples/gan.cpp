@@ -42,8 +42,9 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 	auto y_d_1      = _constants.alloc(output_layout); dev.fill(y_d_1, 0.9f);
 	auto y_d_0      = _constants.alloc(output_layout); dev.fill(y_d_0, 0.0f);
 	auto y_g        = _constants.alloc(output_layout); dev.fill(y_g,   1.0f);
+
 	// testing batch
-	auto z_test = _constants.alloc(input_layout);
+	auto z_test = _constants.alloc(tensor_layout<2>(100, _g.input_shape().datasize()));
 	dev.random_uniform(z_test);
 
 	assert(data.size() % batch_size == 0);
@@ -105,8 +106,10 @@ void GAN::save_generated_images(uint id, const batch& z_batch)
 	const uint scale_factor = 16;
 	const uint tile_wh = 28 * scale_factor;
 	const uint border_sz = 24;
-	const uint tile_count = 5;
+	const uint tile_count = 10;
 	const uint total_wh = (tile_wh * tile_count) + (border_sz * (tile_count + 1));
+
+	assert((tile_count * tile_count) <= z_batch.shape(0));
 
 	CImg<float> image(total_wh, total_wh);
 
