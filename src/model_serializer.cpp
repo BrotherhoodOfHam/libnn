@@ -28,7 +28,6 @@ type read(std::istream& in)
 
 /*************************************************************************************************************************************/
 
-
 void model::serialize(const std::string& filename)
 {
 	std::fstream f(filename, std::ios::binary | std::ios::out);
@@ -38,6 +37,11 @@ void model::serialize(const std::string& filename)
 		throw std::exception();
 	}
 
+	serialize(f);
+}
+
+void model::serialize(std::ostream& f)
+{
 	std::vector<scalar> param_buffer;
 	std::vector<node_parameter> parameter_set;
 	for (auto node : _nodes)
@@ -75,10 +79,15 @@ void model::deserialize(const std::string& filename)
 		throw std::exception();
 	}
 
+	deserialize(f);
+}
+
+void model::deserialize(std::istream& f)
+{
 	uint magic = read<uint>(f);
 	if (magic != *reinterpret_cast<const uint*>(s_magic))
 	{
-		std::cout << "incorrect file format: " << filename << std::endl;
+		std::cout << "incorrect format" << std::endl;
 		throw std::exception();
 	}
 

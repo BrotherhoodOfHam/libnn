@@ -43,9 +43,6 @@ namespace nn
 		batch forward(scope& dc, const batch& x);
 		batch backward(scope& dc, const batch& dy);
 
-		batch execute(const batch& x);
-		batch operator()(const batch& x) { return execute(x); }
-
 		// Return the learnable parameters of this model
 		const std::vector<node_parameter>& parameters() { return _parameters; }
 
@@ -66,6 +63,11 @@ namespace nn
 		void serialize(const std::string& filename);
 		// Deserialize parameters from file
 		void deserialize(const std::string& filename);
+
+		// Serialize parameters to stream
+		void serialize(std::ostream& out);
+		// Deserialize parameters from stream
+		void deserialize(std::istream& in);
 
 		// Return an immutable copy of this model, meaning it's parameters are hidden
 		model immutable() const;

@@ -8,14 +8,6 @@ using namespace nn;
 
 /***********************************************************************************************************************/
 
-batch model::execute(const batch& x)
-{
-	auto scope = device::begin(execution_mode::execute, x.shape(0));
-	auto y = forward(scope, x);
-	_activations.clear();
-	return y;
-}
-
 batch model::forward(scope& dc, const batch& x)
 {
 	_activations.clear();

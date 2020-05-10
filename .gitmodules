@@ -7,3 +7,6 @@
 [submodule "CImg"]
 	path = deps/CImg
 	url = https://github.com/dtschump/CImg.git
+[submodule "deps/pybind"]
+	path = deps/pybind
+	url = https://github.com/pybind/pybind11.git
