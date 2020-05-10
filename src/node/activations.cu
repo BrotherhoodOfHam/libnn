@@ -301,7 +301,7 @@ batch activation::softmax::forward(scope& dc, const batch& x)
 	uint block_size = 32;
 	uint block_count = (x.size() + block_size - 1) / block_size;
 	
-	uint b = dc.batch_size();
+	uint b = x.shape(0);
 	uint n = x.size() / b;
 	softmax_kernel<<<block_count, block_size>>>(b, n, y.ptr(), x.ptr());
 
@@ -331,7 +331,7 @@ batch activation::softmax::backward(scope& dc, const batch& x, const batch& y, c
 
 	auto dx = dc.alloc(x.layout());
 
-	uint b = dc.batch_size();
+	uint b = x.shape(0);
 	uint n = x.size() / b;
 
 	uint block_size = 32;

@@ -27,7 +27,7 @@ dense_layer::dense_layer(tensor_shape input_shape, uint layer_size) :
 
 batch dense_layer::forward(scope& dc, const batch& x)
 {
-	auto y = dc.batch_alloc(_output);
+	auto y = dc.alloc(x.shape(0), _output[0]);
 
 	dc.matrix_set_rows(y, _b.v());
 	dc.matrix_mul(y, x, _w.v(), ops::accumulate | ops::transpose_B);
@@ -52,7 +52,7 @@ batch dense_layer::forward(scope& dc, const batch& x)
 
 batch dense_layer::backward(scope& dc, const batch& x, const batch& y, const batch& dy)
 {
-	auto dx = dc.batch_alloc(_input);
+	auto dx = dc.alloc(dy.shape(0), _input[0]);
 
 	tensor<2> dw = _w.dv();
 	vector    db = _b.dv();

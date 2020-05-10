@@ -18,16 +18,15 @@ device& device::get()
     Variable scope
 *************************************************************************************************************************************/
 
-scope::scope(device* d, pool_allocator* pool, execution_mode mode, uint batch_size) :
-    _d(d), _pool(pool), _mode(mode), _batch_size(batch_size)
+scope::scope(device* d, pool_allocator* pool, execution_mode mode) :
+    _d(d), _pool(pool), _mode(mode)
 {}
 
 scope::scope(scope&& rhs) noexcept :
-    _d(rhs._d), _pool(rhs._pool), _mode(rhs._mode), _batch_size(rhs._batch_size)
+    _d(rhs._d), _pool(rhs._pool), _mode(rhs._mode)
 {
     rhs._d = nullptr;
     rhs._pool = nullptr;
-    rhs._batch_size = 0;
 }
 
 scope::~scope()
@@ -45,7 +44,7 @@ void scope::check() const
     assert(_d != nullptr);
 }
 
-scope device::begin(execution_mode mode, uint batch_size)
+scope device::begin(execution_mode mode)
 {
     auto& d = get();
     if (d._in_scope)
@@ -53,7 +52,7 @@ scope device::begin(execution_mode mode, uint batch_size)
         throw std::runtime_error("The scope cannot be aquired");
     }
     d._in_scope = true;
-    return nn::scope(&d, &d._scope_pool, mode, batch_size);
+    return nn::scope(&d, &d._scope_pool, mode);
 }
 
 /*************************************************************************************************************************************/

@@ -38,7 +38,7 @@ public:
         if (x.shape(1) != _input_shape[0])
             throw std::runtime_error("Incorrect input shape");
 
-        auto dc = nn::device::begin(nn::execution_mode::execute, (nn::uint)x.shape(0));
+        auto dc = nn::device::begin(nn::execution_mode::execute);
         auto dc_x = dc.alloc((nn::uint)x.shape(0), (nn::uint)x.shape(1));
         dc.update(dc_x, nn::const_span<nn::scalar>((const nn::scalar*)x.data(), (const nn::scalar*)x.data() + x.size()));
         auto dc_y = forward(dc, dc_x);
@@ -99,7 +99,7 @@ PYBIND11_MODULE(libnn, m)
     mdl.def("forward", &py_model::exec_forward);
     //mdl.def("backward", &py_model::exec_backward);
     mdl.def("__call__", &py_model::exec_forward);
-    mdl.def("load_weights", &py_model::deserialize);
+    mdl.def("load_weights", (void(py_model::*)(const std::string&))&py_model::deserialize);
     mdl.def("summary", &py_model::summary);
 
     /*

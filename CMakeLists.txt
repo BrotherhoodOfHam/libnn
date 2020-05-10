@@ -118,10 +118,11 @@ set(libnn_sources
 
 add_library(libnn ${libnn_headers} ${libnn_sources})
 target_include_directories(libnn
-	PUBLIC "${PROJECT_SOURCE_DIR}/include"
+	PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+	PUBLIC "$<INSTALL_INTERFACE:include>"
 	PRIVATE "${PROJECT_SOURCE_DIR}/src"
 )
-target_include_directories(libnn PUBLIC "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+target_include_directories(libnn PRIVATE "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
 #target_compile_features(libnn PUBLIC cxx_std_17) # we need c++17 to use parallel algorithms
 target_compile_features(libnn PUBLIC cxx_std_14)
 set_target_properties(libnn PROPERTIES
@@ -131,6 +132,24 @@ set_target_properties(libnn PROPERTIES
 )
 target_link_libraries(libnn PRIVATE cublas curand)
 assign_source_groups(${libnn_headers} ${libnn_sources})
+
+# install library
+install(TARGETS libnn
+	EXPORT libnn-targets
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+# install library headers
+install(
+    DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
+    DESTINATION "include"
+)
+# export cmake config
+install(EXPORT libnn-targets
+	FILE libnn-config.cmake
+	DESTINATION lib/cmake/
+)
 
 #################################################################################################
 # python binding

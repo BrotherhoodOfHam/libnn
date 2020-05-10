@@ -202,11 +202,10 @@ namespace nn
     {
         device*         _d;
         pool_allocator* _pool;
-        uint            _batch_size;
         execution_mode  _mode;
 
         scope() = default;
-        scope(device* d, pool_allocator* pool, execution_mode mode, uint batch_size);
+        scope(device* d, pool_allocator* pool, execution_mode mode);
 
         void check() const;
 
@@ -219,17 +218,10 @@ namespace nn
         ~scope();
 
         bool is_training() const { return _mode == execution_mode::training; }
-        uint batch_size() const { return _batch_size; }
 
         // inherit device behaviour
         inline void random_uniform(vector x);
         inline void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f);
-
-        template<uint n>
-        tensor<n+1> batch_alloc(const tensor_layout<n>& ly) { return _pool->alloc(tensor_layout<n + 1>(_batch_size, ly)); }
-
-        template<typename ... args_t, uint n = sizeof...(args_t) + 2>
-        tensor<n> batch_alloc(uint shape0, args_t ... shape) { return this->alloc(_batch_size, shape0, shape...); }
 
         template<uint n>
         tensor<n> alloc(const tensor_layout<n>& ly) { return _pool->alloc(ly); }
@@ -265,7 +257,7 @@ namespace nn
 
         // Begin the context.
         // There can only be one instance at a time
-        static scope begin(execution_mode mode, uint batch_size);
+        static scope begin(execution_mode mode = execution_mode::execute);
 
         void random_uniform(vector x) { _rng.random_uniform(x); }
         void random_normal(vector x, float sdv = 1.0f, float mean = 0.0f) { _rng.random_normal(x, sdv, mean); }

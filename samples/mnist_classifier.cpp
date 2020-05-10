@@ -81,7 +81,7 @@ int main()
 	trainer t(classifier, adam());
 	t.train(
 		ds.x_train, ds.y_train, ds.x_test, ds.y_test,
-		30, 100
+		15, 100
 	);
 
 	classifier.serialize("classifier.bin");
