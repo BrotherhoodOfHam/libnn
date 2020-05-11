@@ -1,0 +1,7 @@
+<!DOCTYPE RCC><RCC version="1.0">
+	<qresource>
+		<file alias="generator.bin">../pretrained/mnist_generator.bin</file>
+    <file alias="discriminator.bin">../pretrained/mnist_discriminator.bin</file>
+    <file alias="classifier.bin">../pretrained/mnist_classifier.bin</file>
+	</qresource>
+</RCC>
