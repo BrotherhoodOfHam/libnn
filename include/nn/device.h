@@ -137,7 +137,6 @@ namespace nn
         float stop();
     };
 
-
     /*
         Stateless functions for manipulating vectors and tensors
     */

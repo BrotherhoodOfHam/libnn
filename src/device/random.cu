@@ -41,29 +41,6 @@ rng::rng(seed_type seed)
     check(curandSetPseudoRandomGeneratorSeed(_prng, seed));
 }
 
-/*
-void random_generator::init(seed_type seed, size_t size)
-{
-    bool reseed = seed != _seed;
-    if (size > _states_size)
-    {
-        _allocator.free();
-        _states = _allocator.alloc_array<curandState>(size);
-        _states_size = size;
-        reseed = true;
-    }
-
-    if (reseed)
-    {
-        _seed = seed;
-
-        uint block_size = 256;
-        uint block_count = ((uint)size + block_size - 1) / block_size;
-        RNG_init_kernel<<<block_count, block_size>>>((curandState*)_states, _seed, (uint)size);
-    }
-}
-*/
-
 void rng::seed(seed_type seed)
 {
     check(curandSetPseudoRandomGeneratorSeed(_prng, seed));

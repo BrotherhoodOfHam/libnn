@@ -128,6 +128,10 @@ namespace nn
 			compute_strides();
 		}
 
+		tensor_layout(uint dim, tensor_shape shape) :
+			tensor_layout(dim, tensor_layout<dims - 1>(shape))
+		{}
+
 		explicit tensor_layout(tensor_shape shape)
 		{
 			if (shape.size() != dims)

@@ -155,21 +155,24 @@ install(EXPORT libnn-targets
 # python binding
 #################################################################################################
 
-if (BUILD_PYTHON_BINDINGS)
+# demo requires pybind11 as well in order embed the interpreter
+if (BUILD_PYTHON_BINDINGS OR BUILD_DEMO)
 	add_subdirectory(deps/pybind)
 
-	pybind11_add_module(pylibnn
-		src/python/module.cpp
-	)
-	target_link_libraries(pylibnn PRIVATE libnn)
+	if (BUILD_PYTHON_BINDINGS)
+		pybind11_add_module(pylibnn
+			src/python/module.cpp
+		)
+		target_link_libraries(pylibnn PRIVATE libnn)
 
-	set_target_properties(pylibnn PROPERTIES
-		LIBRARY_OUTPUT_NAME "libnn"
-		SUFFIX ".pyd"
-	)
-	add_custom_command(TARGET pylibnn
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:pylibnn>" "${PROJECT_SOURCE_DIR}/scripts"
-	)
+		set_target_properties(pylibnn PROPERTIES
+			LIBRARY_OUTPUT_NAME "libnn"
+			SUFFIX ".pyd"
+		)
+		add_custom_command(TARGET pylibnn
+			COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:pylibnn>" "${PROJECT_SOURCE_DIR}/scripts"
+		)
+	endif()
 endif()
 
 #################################################################################################

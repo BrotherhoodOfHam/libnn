@@ -33,10 +33,13 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 	trainer gopt(gan, opt, loss);
 	trainer dopt(_d,  opt, loss);
 
-	tensor_layout<2> input_layout(batch_size,  _g.input_shape().datasize());
-	tensor_layout<2> image_layout(batch_size,  _g.output_shape().datasize());
-	tensor_layout<2> output_layout(batch_size, _d.output_shape().datasize());
+	tensor_layout<2> input_layout(batch_size,  _g.input_shape());
+	tensor_layout<2> image_layout(batch_size,  _g.output_shape());
+	tensor_layout<2> output_layout(batch_size, _d.output_shape());
 
+	_constants.free();
+
+	// allocate inputs, outputs and labels
 	auto z_input    = _constants.alloc(input_layout);
 	auto real_input = _constants.alloc(image_layout);
 	auto y_d_1      = _constants.alloc(output_layout); dev.fill(y_d_1, 0.9f);
@@ -61,36 +64,46 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 
 		progress_printer progress(data.size() / batch_size);
 
+		float d_loss = 0;
+		float g_loss = 0;
+
 		for (uint i = 0; i < indices.size(); i++)
 		{
 			// update batch
 			uint batch_index = i % batch_size;
 			dev.update(real_input[batch_index], data[indices[i]]);
-			
+
 			if (batch_index == 0 && i > 0)
 			{
 				progress.next();
-				auto dc = device::begin(execution_mode::training, batch_size);
+				auto dc = device::begin(execution_mode::training);
 
 				//randomize z
 				dc.random_uniform(z_input);
 
 				//train discriminator on real batch
-				dopt.train_batch(dc, real_input, y_d_1);
+				auto dresult_r = dopt.train_batch(dc, real_input, y_d_1);
 
 				//train discriminator on generated batch
 				auto g_output = _g.forward(dc, z_input).reshape(image_layout);
-				dopt.train_batch(dc, g_output, y_d_0);
+				auto dresult_f = dopt.train_batch(dc, g_output, y_d_0);
 
 				//randomize z
 				dc.random_uniform(z_input);
 
 				//train the generator
-				gopt.train_batch(dc, z_input, y_g);
+				auto gresult = gopt.train_batch(dc, z_input, y_g);
+
+				// measure loss
+				d_loss += loss.loss(dc, dresult_r.y, y_d_1);
+				d_loss += loss.loss(dc, dresult_f.y, y_d_0);
+				g_loss += loss.loss(dc, gresult.y, y_g);
 			}
 		}
 
 		progress.stop();
+
+		std::cout << time_stamp << " D loss: " << (d_loss / data.size()) << " | G loss: " << (g_loss / data.size()) << std::endl;
 
 		save_generated_images(e, z_test);
 		_g.serialize(std::string("img/model-" + std::to_string(e) + ".bin"));
@@ -99,6 +112,9 @@ void GAN::train(const std::vector<trainer::data>& data, uint epochs, uint batch_
 
 /*************************************************************************************************************************************/
 
+/*
+	Save batch of images into a tiled image
+*/
 void GAN::save_generated_images(uint id, const batch& z_batch)
 {
 	const std::string filename = "img/g" + std::to_string(id) + ".bmp";
@@ -116,7 +132,7 @@ void GAN::save_generated_images(uint id, const batch& z_batch)
 	tensor_layout<2> img_layout(z_batch.shape(0), 28 * 28);
 	std::vector<scalar> gen_image;
 
-	auto dc = device::begin(execution_mode::execute, z_batch.shape(0));
+	auto dc = device::begin(execution_mode::execute);
 
 	auto g = _g.forward(dc, z_batch).reshape(img_layout);
 	dc.read(g, gen_image);

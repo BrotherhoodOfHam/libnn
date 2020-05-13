@@ -1,2 +1,5 @@
 gan/
 dcgan/
+mnist/
+
+libnn.pyd

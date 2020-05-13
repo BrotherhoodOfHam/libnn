@@ -18,27 +18,18 @@ namespace nn
 	using byte = unsigned char;
 	using uint = unsigned int;
 
-	// print the time
+	/*
+		Print current time
+	*/
 	std::ostream& time_stamp(std::ostream& out);
 
+	/*
+		Random engine helper
+	*/
 	inline std::default_random_engine new_random_engine()
 	{
 		return std::default_random_engine(std::random_device()());
 	}
-
-	template<class T>
-	class weak_ptr
-	{
-		T* _ptr;
-
-	public:
-
-		inline weak_ptr() : _ptr(nullptr) {}
-		inline weak_ptr(T* ptr) : _ptr(ptr) {}
-
-		inline T* get() const { return _ptr; }
-		inline T* operator->() const { return _ptr; }
-	};
 
 	/*
 		Container span
@@ -114,7 +105,7 @@ namespace nn
 	using const_span = span<const type>;
 
 	/*
-		Utils
+		Type traits
 	*/
 
 	template <typename F, typename... Args>
